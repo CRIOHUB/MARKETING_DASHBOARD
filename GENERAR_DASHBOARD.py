@@ -1,0 +1,3131 @@
+#!/usr/bin/env python3
+"""GENERAR_DASHBOARD.py — CrioCord Perú Dashboard Marketing 2026  v4"""
+import openpyxl, json, os, base64
+from datetime import datetime
+
+BASE   = os.path.dirname(os.path.abspath(__file__))
+HUB    = os.path.join(BASE, "CRIOCORD - DATA HUB 2026.xlsx")
+OUTPUT = os.path.join(BASE, "DASHBOARD CRIOCORD 2026.html")
+NOW    = datetime.now().strftime("%d/%m/%Y %H:%M")
+TODAY  = datetime.now().strftime("%Y-%m-%d")
+
+URL_PROSPECCION = "https://pecriocord-my.sharepoint.com/personal/dwalcheff_criocord_com_pe/Documents/4.%20MARKETING/1.%20ADMINISTRATIVO%20PROMOCION/SEGUIMIENTO%20DE%20PROSPECCION/2026/SEGUIMIENTO%20PROSPECCION%202026.xlsx"
+URL_KPIS        = "https://pecriocord-my.sharepoint.com/personal/dwalcheff_criocord_com_pe/Documents/4.%20MARKETING/1.%20ADMINISTRATIVO%20PROMOCION/RESULTADOS%20COM-MKT/DECKS%20DE%20MARKETING/SEGUIMIENTO%20KPIS%202026.xlsx"
+URL_CRONOGRAMA  = "https://pecriocord-my.sharepoint.com/personal/dwalcheff_criocord_com_pe/Documents/Daniel%20Walcheff%20-%20Personal/2025/SEGUIMIENTOS%20PERSONALES/CRONOGRAMA%202026%20FINAL.xlsx"
+URL_PPTO        = "https://pecriocord-my.sharepoint.com/personal/dwalcheff_criocord_com_pe/Documents/Daniel%20Walcheff%20-%20Personal/2025/SEGUIMIENTOS%20PERSONALES/PPTO%20CONSOLIDADO%20MKT.xlsx"
+URL_PLAN        = "https://canva.link/p96n1grngu39whh"
+URL_VEND        = "https://canva.link/oyhkmdd208y33og"
+
+META_VEND = {
+    "Lima":      {"ucu":15,"adn":5,"tamizaje":5,"myprenatal":2},
+    "Provincia": {"ucu":15,"adn":5,"tamizaje":5,"myprenatal":2},
+}
+# Meta captadores VM (Lima = Milagros + Marylin juntos; Arequipa = Velia)
+META_CAPT = {
+    "Lima":     {"ucu":30,"adn":15,"tamizaje":15,"myprenatal":12},
+    "Arequipa": {"ucu":10,"adn":5, "tamizaje":5, "myprenatal":4},
+}
+
+# Logo: intentar cargar desde archivo, si no usar SVG inline
+LOGO_FILE = os.path.join(BASE, "logo_criocord.png")
+if os.path.exists(LOGO_FILE):
+    with open(LOGO_FILE, "rb") as _f:
+        _b64 = base64.b64encode(_f.read()).decode()
+    LOGO_HTML = f'<img src="data:image/png;base64,{_b64}" style="height:40px;mix-blend-mode:screen;margin-right:14px;vertical-align:middle;flex-shrink:0" alt="CrioCord">'
+    print(f"  Logo cargado desde archivo: {LOGO_FILE}")
+else:
+    LOGO_HTML = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 44" style="height:40px;margin-right:12px;flex-shrink:0;vertical-align:middle">
+  <g transform="translate(22,22) rotate(45)">
+    <rect x="-16" y="-16" width="32" height="32" rx="7" fill="none" stroke="white" stroke-width="2.5"/>
+    <rect x="-10" y="-10" width="20" height="20" rx="4.5" fill="none" stroke="white" stroke-width="2"/>
+  </g>
+  <circle cx="22" cy="22" r="5.5" fill="white"/>
+  <circle cx="22" cy="22" r="2.2" fill="#0B5394"/>
+</svg>'''
+
+def read_sheet(path, sheet):
+    try:
+        wb = openpyxl.load_workbook(path, data_only=True)
+        ws = wb[sheet]
+        rows = list(ws.iter_rows(values_only=True))
+        if not rows: return []
+        hdrs = [str(c).strip() if c else f"col{i}" for i,c in enumerate(rows[0])]
+        return [{hdrs[i]: row[i] for i in range(min(len(hdrs),len(row)))} for row in rows[1:] if any(c is not None for c in row)]
+    except Exception as e:
+        print(f"  ⚠ read_sheet({sheet}): {e}"); return []
+
+conv_raw = read_sheet(HUB, "CONVERSION")
+vm_raw   = read_sheet(HUB, "VISITA_MEDICA")
+
+MESES_ORD = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"]
+MES_MAP   = {str(i+1): m for i,m in enumerate(MESES_ORD)}
+MAYO_PLUS = {"JUN","JUL","AGO","SEP","OCT","NOV","DIC"}  # MAY removed — datos confirmados 04/06/2026
+
+def mes_lbl(f):
+    try:
+        p = str(f).replace("-","/").split("/")
+        return MES_MAP.get(str(int(p[1])), str(f)) if len(p)>1 else str(f)
+    except: return str(f)
+
+conv = []
+for r in conv_raw:
+    if str(r.get("Canal",""))=="TOTAL" and str(r.get("Servicio",""))=="TODOS":
+        try:
+            ing=float(r.get("Ingresado","0") or 0); val=float(r.get("Validos","0") or 0)
+            serv=float(r.get("Servicios_Cerrados","0") or 0)
+            mon=float(r.get("Inversion_S/","0") or 0); ven=float(r.get("Venta_S/","0") or 0)
+            m=mes_lbl(r.get("Fecha",""))
+            mp = m in MAYO_PLUS
+            conv.append({"mes":m,"mayo_mode":mp,"ing":ing,"val":ing if mp else val,"serv":serv,"monto":mon,"venta":ven,
+                "venta_online":round(ven*0.78,0),"venta_offline":round(ven*0.22,0),
+                "cac":float(r.get("CAC","0") or 0),"roas":float(r.get("ROAS","0") or 0),
+                "cpl":round(mon/ing,2) if ing>0 else 0,"cpa":round(mon/serv,2) if serv>0 else 0,
+                "cr1":round((ing if mp else val)/ing*100,1) if ing>0 else 0,
+                "cr2":round(serv/(ing if mp else val)*100,1) if (ing if mp else val)>0 else 0,
+                "cr3":round(serv/ing*100,1) if ing>0 else 0,
+                "roi_pct":round((ven-mon)/mon*100,1) if mon>0 else 0})
+        except: pass
+
+if not conv:
+    # ── Datos reales extraídos de SEGUIMIENTO PROSPECCION 2026 (actualizado 28/05/2026)
+    # ing/val/serv confirmados. S/ de venta mantenidos hasta lectura de KPIS 2026.
+    # venta_online/offline calculados por proporción real de unidades online vs offline.
+    def _mk(m,mp,ing,val,serv,mon,ven,vu_on,vu_off):
+        vo=round(ven*vu_on/(vu_on+vu_off)) if (vu_on+vu_off)>0 else 0
+        vf=round(ven*vu_off/(vu_on+vu_off)) if (vu_on+vu_off)>0 else 0
+        cr1=round(val/ing*100,1) if ing>0 else 0
+        cr2=round(serv/val*100,1) if val>0 else 0
+        cr3=round(serv/ing*100,1) if ing>0 else 0
+        cpl=round(mon/ing,2) if ing>0 else 0
+        cpa=round(mon/serv,2) if serv>0 else 0
+        roas=round(ven/mon,2) if mon>0 else 0
+        roi=round((ven-mon)/mon*100,1) if mon>0 else 0
+        return {"mes":m,"mayo_mode":mp,"ing":ing,"val":ing if mp else val,"serv":serv,
+                "monto":mon,"venta":ven,"venta_online":vo,"venta_offline":vf,
+                "cac":cpa,"roas":roas,"cpl":cpl,"cpa":cpa,"cr1":cr1,"cr2":cr2,"cr3":cr3,"roi_pct":roi}
+    conv = [
+        # ENE: ing=2333✓ val=1765✓ serv=137 (online=97u offline=40u)
+        _mk("ENE",False,2333,1765,137,12000,   428733.80, 97, 40),
+        # FEB: ing=2343 val=1696 serv=66  (online=43u offline=23u)
+        _mk("FEB",False,2343,1696, 66,12423,   359880.00, 43, 23),
+        # MAR: ing=1876 val=1443 serv=99  (online=81u offline=18u)
+        _mk("MAR",False,1876,1443, 99,18217,   412500.00, 81, 18),
+        # ABR: ing=5460 val=4500 serv=45  (online=37u offline=8u) — S/ pendiente actualización
+        _mk("ABR",False,5460,4500, 45,19968.47,132824.76, 37,  8),
+        # MAY: datos confirmados SEGUIMIENTO PROSPECCION 2026 (04/06/2026)
+        _mk("MAY",False,1050,1050,144,    0,       0.00, 92, 28),
+        # JUN: SEGUIMIENTO PROSPECCION 2026 (17/06/2026). Hoja JUN-26: tablas de VENTAS
+        # por canal (online MKT / offline VM) aun en blanco; solo registradas ventas por
+        # asesor comercial = 92u. serv=92 (FFVV comercial). ing=444 (online 191 + VM 253).
+        # Sin columna VALIDOS -> mayo_mode=True. S/ pendiente.
+        _mk("JUN",True, 444, 444, 92,    0,       0.00,  0,  0),
+    ]
+
+mix = []
+for r in conv_raw:
+    if str(r.get("Canal",""))=="TOTAL" and str(r.get("Servicio","")) not in ["TODOS",""]:
+        try:
+            svc=str(r.get("Servicio","")).replace("ADN_Newborn","ADN").replace("ADN Newborn","ADN").replace("Tamizaje_Neonatal","Tamizaje")
+            mix.append({"mes":mes_lbl(r.get("Fecha","")), "servicio":svc, "servicios":float(r.get("Servicios_Cerrados","0") or 0), "venta":float(r.get("Venta_S/","0") or 0)})
+        except: pass
+
+# Datos reales por mes — siempre se aplican si el mes no está ya en mix
+_MIX_REAL = [
+    ("ENE",{"UCU":82,"ADN":27,"Tamizaje":30,"MyPrenatal":2,"Seguridad Total":2}),
+    ("FEB",{"UCU":51,"ADN": 7,"Tamizaje":13,"MyPrenatal":3,"Seguridad Total":8}),
+    ("MAR",{"UCU":73,"ADN":20,"Tamizaje":16,"MyPrenatal":6,"Seguridad Total":9}),
+    ("ABR",{"UCU":57,"ADN": 3,"Tamizaje": 4,"MyPrenatal":1,"Seguridad Total":5}),
+    ("MAY",{"UCU":58,"ADN":23,"Tamizaje":31,"MyPrenatal":8,"Seguridad Total":24}),
+    # JUN — ventas por canal en blanco en la hoja; mix tomado del desglose por asesor
+    # comercial (92u): cordones 33, tamizaje 14, adn 9, myprenatal 1, seguridad total 35.
+    ("JUN",{"UCU":33,"ADN":9,"Tamizaje":14,"MyPrenatal":1,"Seguridad Total":35}),
+]
+meses_en_mix = {r["mes"] for r in mix}
+for m,data in _MIX_REAL:
+    if m not in meses_en_mix:
+        for svc,n in data.items():
+            mix.append({"mes":m,"servicio":svc,"servicios":n,"venta":0})
+
+vm,vm_cat = [],[]
+for r in vm_raw:
+    cat=str(r.get("Categoría_Contacto",""))
+    if cat=="TOTAL":
+        try:
+            vm.append({"mes":mes_lbl(r.get("Fecha","")),"exec":str(r.get("Representante","")),"zona":str(r.get("Ciudad","")),"visitas":float(r.get("Visitas","0") or 0),"pot_uso":float(r.get("Leads_Originados","0") or 0) if str(r.get("Leads_Originados","")).replace(".","").isdigit() else 0,"notas":str(r.get("Notas","") or "")})
+        except: pass
+    elif cat in ["Secretaria","Médicos","Obstetras"] and str(r.get("Clínica",""))=="TODAS":
+        try:
+            vm_cat.append({"mes":mes_lbl(r.get("Fecha","")),"exec":str(r.get("Representante","")),"cat":cat,"visitas":float(r.get("Visitas","0") or 0)})
+        except: pass
+
+if not vm:
+    # Visitas reales por representante — fuente: SEGUIMIENTO PROSPECCION 2026
+    # pot_uso = captaciones (ventas offline atribuidas al rep)
+    vm=[
+        # ENERO
+        {"mes":"ENE","exec":"Milagritos",     "zona":"Lima",    "visitas":139,"pot_uso":21,"notas":""},
+        {"mes":"ENE","exec":"Marylin",         "zona":"Lima",    "visitas":139,"pot_uso": 5,"notas":""},
+        {"mes":"ENE","exec":"Adler",           "zona":"Lima",    "visitas":144,"pot_uso": 9,"notas":"Adler en VM hasta mar"},
+        {"mes":"ENE","exec":"Velia",           "zona":"Arequipa","visitas":141,"pot_uso": 3,"notas":""},
+        {"mes":"ENE","exec":"Alejandra",       "zona":"Lima",    "visitas": 86,"pot_uso": 2,"notas":"Canal Marcas"},
+        # FEBRERO
+        {"mes":"FEB","exec":"Milagritos",     "zona":"Lima",    "visitas":145,"pot_uso": 7,"notas":""},
+        {"mes":"FEB","exec":"Marylin",         "zona":"Lima",    "visitas":131,"pot_uso": 6,"notas":""},
+        {"mes":"FEB","exec":"Adler",           "zona":"Lima",    "visitas":120,"pot_uso": 4,"notas":""},
+        {"mes":"FEB","exec":"Velia",           "zona":"Arequipa","visitas":127,"pot_uso": 9,"notas":""},
+        {"mes":"FEB","exec":"Alejandra",       "zona":"Lima",    "visitas": 92,"pot_uso": 4,"notas":"Canal Marcas"},
+        # MARZO
+        {"mes":"MAR","exec":"Milagros Herrera","zona":"Lima",    "visitas":110,"pot_uso": 0,"notas":"Ventas vía canal Comercial"},
+        {"mes":"MAR","exec":"Marylin",         "zona":"Lima",    "visitas":145,"pot_uso": 6,"notas":""},
+        {"mes":"MAR","exec":"Adler",           "zona":"Lima",    "visitas":109,"pot_uso": 5,"notas":"Último mes en VM"},
+        {"mes":"MAR","exec":"Velia",           "zona":"Arequipa","visitas":143,"pot_uso": 3,"notas":""},
+        {"mes":"MAR","exec":"Alejandra",       "zona":"Lima",    "visitas": 80,"pot_uso": 4,"notas":"Canal Marcas"},
+        # ABRIL (Adler pasa a Comercial)
+        {"mes":"ABR","exec":"Milagros Herrera","zona":"Lima",    "visitas":143,"pot_uso": 6,"notas":""},
+        {"mes":"ABR","exec":"Marylin",         "zona":"Lima",    "visitas":139,"pot_uso": 1,"notas":""},
+        {"mes":"ABR","exec":"Velia",           "zona":"Arequipa","visitas":131,"pot_uso": 1,"notas":""},
+        # MAYO (parcial al 18/05)
+        {"mes":"MAY","exec":"Marylin",         "zona":"Lima",    "visitas": 58,"pot_uso": 0,"notas":"Parcial al 18/05"},
+        {"mes":"MAY","exec":"Milagros Herrera","zona":"Lima",    "visitas": 25,"pot_uso": 0,"notas":"Parcial al 18/05"},
+        {"mes":"MAY","exec":"Velia",           "zona":"Arequipa","visitas": 60,"pot_uso": 0,"notas":"Parcial al 18/05"},
+    ]
+if not vm_cat:
+    # Categoría de contacto por rep y mes (Médicos / Obstetras / Secretaria)
+    vm_cat=[
+        # ENE
+        {"mes":"ENE","exec":"Milagritos",     "cat":"Médicos",   "visitas":113},
+        {"mes":"ENE","exec":"Milagritos",     "cat":"Obstetras", "visitas":  9},
+        {"mes":"ENE","exec":"Milagritos",     "cat":"Secretaria","visitas": 17},
+        {"mes":"ENE","exec":"Marylin",         "cat":"Médicos",   "visitas":115},
+        {"mes":"ENE","exec":"Marylin",         "cat":"Obstetras", "visitas": 10},
+        {"mes":"ENE","exec":"Marylin",         "cat":"Secretaria","visitas": 14},
+        {"mes":"ENE","exec":"Adler",           "cat":"Médicos",   "visitas":113},
+        {"mes":"ENE","exec":"Adler",           "cat":"Obstetras", "visitas": 22},
+        {"mes":"ENE","exec":"Adler",           "cat":"Secretaria","visitas":  9},
+        {"mes":"ENE","exec":"Velia",           "cat":"Médicos",   "visitas":111},
+        {"mes":"ENE","exec":"Velia",           "cat":"Obstetras", "visitas": 10},
+        {"mes":"ENE","exec":"Velia",           "cat":"Secretaria","visitas": 20},
+        # FEB
+        {"mes":"FEB","exec":"Milagritos",     "cat":"Médicos",   "visitas":113},
+        {"mes":"FEB","exec":"Milagritos",     "cat":"Obstetras", "visitas": 13},
+        {"mes":"FEB","exec":"Milagritos",     "cat":"Secretaria","visitas": 19},
+        {"mes":"FEB","exec":"Marylin",         "cat":"Médicos",   "visitas":107},
+        {"mes":"FEB","exec":"Marylin",         "cat":"Obstetras", "visitas": 11},
+        {"mes":"FEB","exec":"Marylin",         "cat":"Secretaria","visitas": 13},
+        {"mes":"FEB","exec":"Adler",           "cat":"Médicos",   "visitas": 94},
+        {"mes":"FEB","exec":"Adler",           "cat":"Obstetras", "visitas": 20},
+        {"mes":"FEB","exec":"Adler",           "cat":"Secretaria","visitas":  6},
+        {"mes":"FEB","exec":"Velia",           "cat":"Médicos",   "visitas":107},
+        {"mes":"FEB","exec":"Velia",           "cat":"Obstetras", "visitas":  7},
+        {"mes":"FEB","exec":"Velia",           "cat":"Secretaria","visitas": 13},
+        # MAR
+        {"mes":"MAR","exec":"Milagros Herrera","cat":"Médicos",   "visitas":104},
+        {"mes":"MAR","exec":"Milagros Herrera","cat":"Obstetras", "visitas":  2},
+        {"mes":"MAR","exec":"Milagros Herrera","cat":"Secretaria","visitas":  4},
+        {"mes":"MAR","exec":"Marylin",         "cat":"Médicos",   "visitas":117},
+        {"mes":"MAR","exec":"Marylin",         "cat":"Obstetras", "visitas": 14},
+        {"mes":"MAR","exec":"Marylin",         "cat":"Secretaria","visitas": 14},
+        {"mes":"MAR","exec":"Adler",           "cat":"Médicos",   "visitas": 78},
+        {"mes":"MAR","exec":"Adler",           "cat":"Obstetras", "visitas": 28},
+        {"mes":"MAR","exec":"Adler",           "cat":"Secretaria","visitas":  3},
+        {"mes":"MAR","exec":"Velia",           "cat":"Médicos",   "visitas":118},
+        {"mes":"MAR","exec":"Velia",           "cat":"Obstetras", "visitas": 10},
+        {"mes":"MAR","exec":"Velia",           "cat":"Secretaria","visitas": 15},
+        # ABR
+        {"mes":"ABR","exec":"Milagros Herrera","cat":"Médicos",   "visitas":128},
+        {"mes":"ABR","exec":"Milagros Herrera","cat":"Obstetras", "visitas": 10},
+        {"mes":"ABR","exec":"Milagros Herrera","cat":"Secretaria","visitas":  5},
+        {"mes":"ABR","exec":"Marylin",         "cat":"Médicos",   "visitas":114},
+        {"mes":"ABR","exec":"Marylin",         "cat":"Obstetras", "visitas": 16},
+        {"mes":"ABR","exec":"Marylin",         "cat":"Secretaria","visitas":  9},
+        {"mes":"ABR","exec":"Velia",           "cat":"Médicos",   "visitas":104},
+        {"mes":"ABR","exec":"Velia",           "cat":"Obstetras", "visitas":  8},
+        {"mes":"ABR","exec":"Velia",           "cat":"Secretaria","visitas": 19},
+        # MAY (parcial)
+        {"mes":"MAY","exec":"Marylin",         "cat":"Médicos",   "visitas": 47},
+        {"mes":"MAY","exec":"Marylin",         "cat":"Obstetras", "visitas":  7},
+        {"mes":"MAY","exec":"Marylin",         "cat":"Secretaria","visitas":  4},
+        {"mes":"MAY","exec":"Milagros Herrera","cat":"Médicos",   "visitas": 22},
+        {"mes":"MAY","exec":"Milagros Herrera","cat":"Obstetras", "visitas":  3},
+        {"mes":"MAY","exec":"Milagros Herrera","cat":"Secretaria","visitas":  0},
+        {"mes":"MAY","exec":"Velia",           "cat":"Médicos",   "visitas": 48},
+        {"mes":"MAY","exec":"Velia",           "cat":"Obstetras", "visitas":  5},
+        {"mes":"MAY","exec":"Velia",           "cat":"Secretaria","visitas":  7},
+    ]
+
+vm_captadores=[
+    {"captador":"Digital / MKT + Comercial","canal":"digital","mes":"ENE","ventas":108},
+    {"captador":"VM — Milagros Herrera","canal":"vm","mes":"ENE","ventas":21},
+    {"captador":"VM — Marylin","canal":"vm","mes":"ENE","ventas":17},
+    {"captador":"VM — Velia","canal":"vm","mes":"ENE","ventas":10},
+    {"captador":"Digital / MKT + Comercial","canal":"digital","mes":"FEB","ventas":97},
+    {"captador":"VM — Milagros Herrera","canal":"vm","mes":"FEB","ventas":18},
+    {"captador":"VM — Marylin","canal":"vm","mes":"FEB","ventas":15},
+    {"captador":"VM — Velia","canal":"vm","mes":"FEB","ventas":8},
+    {"captador":"Digital / MKT + Comercial","canal":"digital","mes":"MAR","ventas":112},
+    {"captador":"VM — Milagros Herrera","canal":"vm","mes":"MAR","ventas":19},
+    {"captador":"VM — Marylin","canal":"vm","mes":"MAR","ventas":16},
+    {"captador":"VM — Velia","canal":"vm","mes":"MAR","ventas":9},
+    {"captador":"Digital / MKT + Comercial","canal":"digital","mes":"ABR","ventas":45},
+    {"captador":"VM — Milagros Herrera","canal":"vm","mes":"ABR","ventas":8},
+    {"captador":"VM — Marylin","canal":"vm","mes":"ABR","ventas":3},
+    {"captador":"VM — Velia","canal":"vm","mes":"ABR","ventas":1},
+]
+
+clinicas=[
+    # ABR 2026 — datos reales corte 30/04
+    {"clinica":"Clínica Delgado",       "rep":"Milagros","zona":"Lima",     "visitas":28,"mes":"ABR"},
+    {"clinica":"San Felipe",             "rep":"Milagros","zona":"Lima",     "visitas":24,"mes":"ABR"},
+    {"clinica":"SANNA El Golf",          "rep":"Milagros","zona":"Lima",     "visitas":23,"mes":"ABR"},
+    {"clinica":"Clínica Miraflores",     "rep":"Milagros","zona":"Lima",     "visitas":14,"mes":"ABR"},
+    {"clinica":"Angloamericana",         "rep":"Milagros","zona":"Lima",     "visitas":11,"mes":"ABR"},
+    {"clinica":"Cl. Internacional SB",   "rep":"Marylin", "zona":"Lima",     "visitas":27,"mes":"ABR"},
+    {"clinica":"SANNA San Borja",        "rep":"Marylin", "zona":"Lima",     "visitas":24,"mes":"ABR"},
+    {"clinica":"Ricardo Palma",          "rep":"Marylin", "zona":"Lima",     "visitas":12,"mes":"ABR"},
+    {"clinica":"Clínica Santa Isabel",   "rep":"Marylin", "zona":"Lima",     "visitas":11,"mes":"ABR"},
+    {"clinica":"Montesur",               "rep":"Marylin", "zona":"Lima",     "visitas":6, "mes":"ABR"},
+    {"clinica":"Pol. EsSalud Yanahuara", "rep":"Velia",   "zona":"Arequipa", "visitas":13,"mes":"ABR"},
+    {"clinica":"Clínica San Pablo AQP",  "rep":"Velia",   "zona":"Arequipa", "visitas":13,"mes":"ABR"},
+    {"clinica":"Clínica San Juan de Dios","rep":"Velia",  "zona":"Arequipa", "visitas":11,"mes":"ABR"},
+    {"clinica":"AUNA Valle Sur AQP",     "rep":"Velia",   "zona":"Arequipa", "visitas":9, "mes":"ABR"},
+    {"clinica":"Clínica Arequipa",       "rep":"Velia",   "zona":"Arequipa", "visitas":9, "mes":"ABR"},
+    # Adler — último mes VM (MAR 2026)
+    {"clinica":"Centenario Pto. de Jesús","rep":"Adler",  "zona":"Lima/Prov","visitas":10,"mes":"MAR"},
+    {"clinica":"Hogar de la Madre",      "rep":"Adler",   "zona":"Lima",     "visitas":8, "mes":"MAR"},
+    {"clinica":"Jesús del Norte",        "rep":"Adler",   "zona":"Lima",     "visitas":11,"mes":"ENE"},
+    # Arequipa — meses previos
+    {"clinica":"DAC (Arequipa)",         "rep":"Velia",   "zona":"Arequipa", "visitas":13,"mes":"MAR"},
+    {"clinica":"Good Hope",              "rep":"Milagros","zona":"Lima",     "visitas":8, "mes":"ENE"},
+]
+# Prospectos/leads por captador por mes + captaciones exitosas (tasa de cierre)
+# Fuente: SEGUIMIENTO INTERNO + PROSPECCION VISITADORES
+# MKT CrioCord = todos los canales ONLINE: Comercial online + Marketing digital + Anualidades
+vm_prosp=[
+    # VM canal total ENE-MAR (desglose por rep solo disponible desde ABR)
+    {"mes":"ENE","captador":"VM (total)",  "canal":"vm",  "leads":431,  "captaciones":40,
+     "detalle":"Milagritos+Marylin+Adler+Velia+Alejandra"},
+    {"mes":"FEB","captador":"VM (total)",  "canal":"vm",  "leads":656,  "captaciones":33,
+     "detalle":"Milagritos+Marylin+Adler+Velia+Alejandra"},
+    {"mes":"MAR","captador":"VM (total)",  "canal":"vm",  "leads":884,  "captaciones":18,
+     "detalle":"Milagros+Marylin+Adler+Velia"},
+    # ABR desglose por rep disponible
+    {"mes":"ABR","captador":"Milagros",    "canal":"vm",  "leads":403,  "captaciones":6,  "detalle":""},
+    {"mes":"ABR","captador":"Marylin",     "canal":"vm",  "leads":267,  "captaciones":1,  "detalle":""},
+    {"mes":"ABR","captador":"Velia",       "canal":"vm",  "leads":215,  "captaciones":1,  "detalle":""},
+    # MKT CrioCord = ONLINE COMERCIAL + ONLINE MARKETING + ONLINE ANUALIDADES
+    {"mes":"ENE","captador":"MKT CrioCord","canal":"mkt", "leads":1295, "captaciones":97,
+     "detalle":"Comercial 1097 + MKT digital 137 + Anualidades 61"},
+    {"mes":"FEB","captador":"MKT CrioCord","canal":"mkt", "leads":981,  "captaciones":43,
+     "detalle":"Comercial 772 + MKT digital 156 + Anualidades 53"},
+    {"mes":"MAR","captador":"MKT CrioCord","canal":"mkt", "leads":992,  "captaciones":81,
+     "detalle":"Comercial 815 + MKT digital 137 + Anualidades 40"},
+    {"mes":"ABR","captador":"MKT CrioCord","canal":"mkt", "leads":4575, "captaciones":34, "detalle":"Comercial online + MKT digital + Anualidades"},
+    # MAY — datos confirmados SEGUIMIENTO PROSPECCION 2026 (actualizado 04/06/2026)
+    {"mes":"MAY","captador":"MKT CrioCord","canal":"mkt", "leads":548,  "captaciones":92, "detalle":"MKT digital + Comercial online + Anualidades"},
+    {"mes":"MAY","captador":"Milagros H",  "canal":"vm",  "leads":244,  "captaciones":14, "detalle":""},
+    {"mes":"MAY","captador":"Marylin",     "canal":"vm",  "leads":161,  "captaciones":10, "detalle":""},
+    {"mes":"MAY","captador":"Velia",       "canal":"vm",  "leads":97,   "captaciones":4,  "detalle":""},
+    # JUN — SEGUIMIENTO PROSPECCION 2026 (17/06/2026). Leads de captación cargados;
+    # captaciones por canal aún sin atribuir (ventas registradas vía FFVV comercial).
+    {"mes":"JUN","captador":"MKT CrioCord","canal":"mkt", "leads":191,  "captaciones":0,  "detalle":"Online MKT digital + Anualidades; ventas atribuidas a FFVV comercial"},
+    {"mes":"JUN","captador":"Milagros",    "canal":"vm",  "leads":102,  "captaciones":0,  "detalle":"Captación pendiente de atribución"},
+    {"mes":"JUN","captador":"Marylin",     "canal":"vm",  "leads":104,  "captaciones":0,  "detalle":"Captación pendiente de atribución"},
+    {"mes":"JUN","captador":"Velia",       "canal":"vm",  "leads":43,   "captaciones":0,  "detalle":"Captación pendiente de atribución"},
+    {"mes":"JUN","captador":"Diana",       "canal":"vm",  "leads":4,    "captaciones":0,  "detalle":"Nueva VM Provincia (onboarding junio)"},
+]
+
+ppto_raw=[
+    {"mes":"ENE","online":9624.25,"offline":2375.75,"eventos":0.0,"ppto_plan":12000.0,"gasto_excl":1200.0},
+    {"mes":"FEB","online":9624.25,"offline":2798.75,"eventos":0.0,"ppto_plan":14000.0,"gasto_excl":1200.0},
+    {"mes":"MAR","online":9624.25,"offline":2730.09,"eventos":5862.66,"ppto_plan":18000.0,"gasto_excl":1400.0},
+    {"mes":"ABR","online":9624.25,"offline":2730.09,"eventos":7614.13,"ppto_plan":20000.0,"gasto_excl":1400.0},
+    {"mes":"MAY","online":9624.25,"offline":2730.09,"eventos":0.0,    "ppto_plan":23429.0,"gasto_excl":1400.0},
+]
+ppto=[]
+for r in ppto_raw:
+    promo=r["online"]+r["offline"]+r["eventos"]; total=promo+r["gasto_excl"]
+    ppto.append({"mes":r["mes"],"online":r["online"],"offline":r["offline"],"eventos":r["eventos"],
+        "gastado":round(promo,2),"gasto_total":round(total,2),"ppto_plan":r["ppto_plan"],
+        "cumpl_pct":round(total/r["ppto_plan"]*100,1) if r["ppto_plan"]>0 else 0})
+
+# ── INVERSIÓN & PRESUPUESTO (datos confirmados por Daniel Walcheff) ──────────
+budget_inv = [
+    {"mes":"ENE","inv_pub":12000.00, "inv_total":35083.78,"ppto_total":48390.27,"pct_ejec":73},
+    {"mes":"FEB","inv_pub":12423.00, "inv_total":22671.26,"ppto_total":27258.09,"pct_ejec":83},
+    {"mes":"MAR","inv_pub":18217.00, "inv_total":69770.29,"ppto_total":30535.48,"pct_ejec":228},
+    {"mes":"ABR","inv_pub":19968.50, "inv_total":56631.32,"ppto_total":43172.47,"pct_ejec":131},
+    {"mes":"MAY","inv_pub":0,        "inv_total":22454.92,"ppto_total":23428.92,"pct_ejec":96},
+]
+# inv_pub   = monto 26 (inversión publicitaria digital) — fuente: SEGUIMIENTO KPIS 2026
+# inv_total = totalidad del área de MKT — fuente: PPTO CONSOLIDADO MKT DW
+# ppto_total= presupuesto planificado total mensual
+
+# ── CAPTACIÓN POR REPRESENTANTE Y SERVICIO (unidades) ───────────────────────
+# FEB 2026 — datos confirmados desde SEGUIMIENTO PROSPECCION 2026 (screenshot 26/05/2026)
+# Otros meses: pendientes de actualización
+captacion_rep = [
+    # ── ENERO ── (datos reales SEGUIMIENTO PROSPECCION 2026)
+    {"mes":"ENE","rep":"MKT CrioCord",  "canal":"online",  "ucu":54,"tamizaje":21,"adn":22,"myprenatal":0,"total":97},
+    {"mes":"ENE","rep":"Milagritos",    "canal":"offline", "ucu":13,"tamizaje":5, "adn":3, "myprenatal":0,"total":21},
+    {"mes":"ENE","rep":"Marylin",       "canal":"offline", "ucu":4, "tamizaje":1, "adn":0, "myprenatal":0,"total":5},
+    {"mes":"ENE","rep":"Adler",         "canal":"offline", "ucu":5, "tamizaje":2, "adn":2, "myprenatal":0,"total":9},
+    {"mes":"ENE","rep":"Velia",         "canal":"offline", "ucu":2, "tamizaje":1, "adn":0, "myprenatal":0,"total":3},
+    {"mes":"ENE","rep":"Alejandra",     "canal":"offline", "ucu":2, "tamizaje":0, "adn":0, "myprenatal":0,"total":2},
+    # ── FEBRERO ── (datos confirmados desde screenshot 26/05/2026)
+    {"mes":"FEB","rep":"MKT CrioCord",  "canal":"online",  "ucu":34,"tamizaje":8,"adn":1,"myprenatal":0,"total":43},
+    {"mes":"FEB","rep":"Milagritos",    "canal":"offline", "ucu":5, "tamizaje":1, "adn":1,"myprenatal":0,"total":7},
+    {"mes":"FEB","rep":"Marylin",       "canal":"offline", "ucu":5, "tamizaje":1, "adn":0,"myprenatal":0,"total":6},
+    {"mes":"FEB","rep":"Adler",         "canal":"offline", "ucu":1, "tamizaje":1, "adn":1,"myprenatal":1,"total":4},
+    {"mes":"FEB","rep":"Velia",         "canal":"offline", "ucu":5, "tamizaje":1, "adn":1,"myprenatal":2,"total":9},
+    {"mes":"FEB","rep":"Alejandra",     "canal":"offline", "ucu":2, "tamizaje":2, "adn":0,"myprenatal":0,"total":4},
+    {"mes":"FEB","rep":"Milagros H",    "canal":"offline", "ucu":0, "tamizaje":0, "adn":0,"myprenatal":3,"total":3},
+    # ── MARZO ── (datos reales SEGUIMIENTO PROSPECCION 2026)
+    {"mes":"MAR","rep":"MKT CrioCord",  "canal":"online",  "ucu":45,"tamizaje":16,"adn":20,"myprenatal":0,"total":81},
+    {"mes":"MAR","rep":"Marylin",       "canal":"offline", "ucu":5, "tamizaje":1, "adn":0, "myprenatal":0,"total":6},
+    {"mes":"MAR","rep":"Adler",         "canal":"offline", "ucu":1, "tamizaje":1, "adn":3, "myprenatal":0,"total":5},
+    {"mes":"MAR","rep":"Velia",         "canal":"offline", "ucu":2, "tamizaje":0, "adn":1, "myprenatal":0,"total":3},
+    {"mes":"MAR","rep":"Alejandra",     "canal":"offline", "ucu":3, "tamizaje":0, "adn":1, "myprenatal":0,"total":4},
+    # ── ABRIL ── (datos reales SEGUIMIENTO PROSPECCION 2026)
+    {"mes":"ABR","rep":"MKT CrioCord",  "canal":"online",  "ucu":26,"tamizaje":4, "adn":3, "myprenatal":1,"total":34},
+    {"mes":"ABR","rep":"Marylin",       "canal":"offline", "ucu":1, "tamizaje":0, "adn":0, "myprenatal":0,"total":1},
+    {"mes":"ABR","rep":"Milagros H",    "canal":"offline", "ucu":4, "tamizaje":0, "adn":0, "myprenatal":2,"total":6},
+    {"mes":"ABR","rep":"Velia",         "canal":"offline", "ucu":0, "tamizaje":0, "adn":0, "myprenatal":1,"total":1},
+    # ── MAYO ── (datos actualizados SEGUIMIENTO PROSPECCION 2026 — 04/06/2026)
+    {"mes":"MAY","rep":"MKT CrioCord",  "canal":"online",  "ucu":44,"tamizaje":27,"adn":21,"myprenatal":0,"total":92},
+    {"mes":"MAY","rep":"Milagros H",    "canal":"offline", "ucu":6, "tamizaje":3, "adn":2, "myprenatal":3,"total":14},
+    {"mes":"MAY","rep":"Marylin",       "canal":"offline", "ucu":7, "tamizaje":1, "adn":0, "myprenatal":2,"total":10},
+    {"mes":"MAY","rep":"Velia",         "canal":"offline", "ucu":1, "tamizaje":0, "adn":0, "myprenatal":3,"total":4},
+    # ── JUNIO ── Sin filas: en la hoja JUN-26 las tablas VENTAS CANAL ONLINE (MKT) y
+    # VENTAS CANAL OFFLINE POR CAPTADOR están en blanco (0). Las 92 ventas de junio
+    # están registradas solo en VENTAS POR ASESOR COMERCIAL (ver 'vendedores').
+]
+
+historial_gastos=[
+    {"fecha":"2026-01-05","mes":"ENE","categoria":"Digital","desc":"Meta Ads — Enero","monto":4200.0},
+    {"fecha":"2026-01-08","mes":"ENE","categoria":"Digital","desc":"Google Ads — Enero","monto":3500.0},
+    {"fecha":"2026-01-12","mes":"ENE","categoria":"Digital","desc":"Producción contenido Instagram","monto":1924.25},
+    {"fecha":"2026-01-20","mes":"ENE","categoria":"Eventos","desc":"Open Lab + Rebranding","monto":2375.75},
+    {"fecha":"2026-01-31","mes":"ENE","categoria":"Administrativo","desc":"Diseño & herramientas","monto":1200.0},
+    {"fecha":"2026-02-05","mes":"FEB","categoria":"Digital","desc":"Meta Ads — Febrero","monto":4200.0},
+    {"fecha":"2026-02-08","mes":"FEB","categoria":"Digital","desc":"Google Ads — Febrero","monto":3500.0},
+    {"fecha":"2026-02-12","mes":"FEB","categoria":"Digital","desc":"Producción contenido WATI/Mail","monto":1924.25},
+    {"fecha":"2026-02-17","mes":"FEB","categoria":"Eventos","desc":"Open Lab Feb + materiales","monto":2798.75},
+    {"fecha":"2026-02-28","mes":"FEB","categoria":"Administrativo","desc":"Diseño & herramientas","monto":1200.0},
+    {"fecha":"2026-03-05","mes":"MAR","categoria":"Digital","desc":"Meta Ads — Marzo","monto":4200.0},
+    {"fecha":"2026-03-08","mes":"MAR","categoria":"Digital","desc":"Google Ads — Marzo","monto":3500.0},
+    {"fecha":"2026-03-10","mes":"MAR","categoria":"Digital","desc":"Promo ADN S/890","monto":1924.25},
+    {"fecha":"2026-03-16","mes":"MAR","categoria":"Eventos","desc":"Congreso + materiales VM","monto":2730.09},
+    {"fecha":"2026-03-20","mes":"MAR","categoria":"Eventos","desc":"Cena con médicos Lima","monto":5862.66},
+    {"fecha":"2026-03-31","mes":"MAR","categoria":"Administrativo","desc":"Diseño & herramientas","monto":1400.0},
+    {"fecha":"2026-04-05","mes":"ABR","categoria":"Digital","desc":"Meta Ads — Abril","monto":4200.0},
+    {"fecha":"2026-04-08","mes":"ABR","categoria":"Digital","desc":"Google Ads — Abril","monto":3500.0},
+    {"fecha":"2026-04-12","mes":"ABR","categoria":"Digital","desc":"Producción Newsletter + WATI","monto":1924.25},
+    {"fecha":"2026-04-16","mes":"ABR","categoria":"Eventos","desc":"Evento Obstetras Piso 13","monto":2730.09},
+    {"fecha":"2026-04-26","mes":"ABR","categoria":"Eventos","desc":"Día Secretaria: Sorteo + SPA","monto":7614.13},
+    {"fecha":"2026-04-30","mes":"ABR","categoria":"Administrativo","desc":"Diseño & herramientas","monto":1400.0},
+]
+
+vendedores=[
+    # ── ENERO ── Fuente: SEGUIMIENTO PROSPECCION 2026 - ENE-26
+    {"exec":"Lourdes",           "zona":"Lima",    "mes":"ENE","ucu":19,"adn":2, "tamizaje":5, "myprenatal":0,"seg_total":0,"leads":159,"validos":126},
+    {"exec":"Heinrrich Stechmann","zona":"Provincia","mes":"ENE","ucu":13,"adn":1,"tamizaje":2,"myprenatal":0,"seg_total":1,"leads":203,"validos":172},
+    {"exec":"Liseth Rondon",     "zona":"Lima",    "mes":"ENE","ucu":15,"adn":7, "tamizaje":9, "myprenatal":0,"seg_total":1,"leads":90, "validos":69},
+    {"exec":"Carolina Vasques",  "zona":"Lima",    "mes":"ENE","ucu":9, "adn":3, "tamizaje":3, "myprenatal":0,"seg_total":0,"leads":147,"validos":97},
+    {"exec":"Yvan",              "zona":"Lima",    "mes":"ENE","ucu":10,"adn":2, "tamizaje":4, "myprenatal":0,"seg_total":0,"leads":158,"validos":134},
+    {"exec":"Gerson",            "zona":"Lima",    "mes":"ENE","ucu":11,"adn":6, "tamizaje":6, "myprenatal":0,"seg_total":0,"leads":199,"validos":163},
+    {"exec":"Adriana",           "zona":"Lima",    "mes":"ENE","ucu":3, "adn":1, "tamizaje":6, "myprenatal":0,"seg_total":0,"leads":141,"validos":116},
+    # ── FEBRERO ──
+    {"exec":"Lourdes",           "zona":"Lima",    "mes":"FEB","ucu":9, "adn":0, "tamizaje":6, "myprenatal":0,"seg_total":2,"leads":79, "validos":60},
+    {"exec":"Heinrrich Stechmann","zona":"Provincia","mes":"FEB","ucu":7, "adn":0,"tamizaje":2,"myprenatal":0,"seg_total":3,"leads":151,"validos":123},
+    {"exec":"Liseth Rondon",     "zona":"Lima",    "mes":"FEB","ucu":15,"adn":2, "tamizaje":4, "myprenatal":0,"seg_total":1,"leads":94, "validos":84},
+    {"exec":"Carolina Vasques",  "zona":"Lima",    "mes":"FEB","ucu":5, "adn":1, "tamizaje":2, "myprenatal":0,"seg_total":1,"leads":150,"validos":99},
+    {"exec":"Yvan",              "zona":"Lima",    "mes":"FEB","ucu":3, "adn":0, "tamizaje":0, "myprenatal":0,"seg_total":1,"leads":81, "validos":65},
+    {"exec":"Gerson",            "zona":"Lima",    "mes":"FEB","ucu":7, "adn":0, "tamizaje":1, "myprenatal":0,"seg_total":0,"leads":127,"validos":100},
+    {"exec":"Adriana",           "zona":"Lima",    "mes":"FEB","ucu":4, "adn":3, "tamizaje":2, "myprenatal":0,"seg_total":0,"leads":90, "validos":76},
+    # ── MARZO ──
+    {"exec":"Lourdes",           "zona":"Lima",    "mes":"MAR","ucu":6, "adn":2, "tamizaje":0, "myprenatal":0,"seg_total":1,"leads":191,"validos":152},
+    {"exec":"Heinrrich Stechmann","zona":"Provincia","mes":"MAR","ucu":17,"adn":4,"tamizaje":6,"myprenatal":0,"seg_total":3,"leads":190,"validos":163},
+    {"exec":"Liseth Rondon",     "zona":"Lima",    "mes":"MAR","ucu":15,"adn":4, "tamizaje":6, "myprenatal":0,"seg_total":3,"leads":132,"validos":114},
+    {"exec":"Carolina Vasques",  "zona":"Lima",    "mes":"MAR","ucu":12,"adn":2, "tamizaje":2, "myprenatal":0,"seg_total":1,"leads":142,"validos":105},
+    {"exec":"Yvan",              "zona":"Lima",    "mes":"MAR","ucu":0, "adn":0, "tamizaje":0, "myprenatal":0,"seg_total":0,"leads":20, "validos":16},
+    {"exec":"Gerson",            "zona":"Lima",    "mes":"MAR","ucu":2, "adn":4, "tamizaje":2, "myprenatal":0,"seg_total":0,"leads":64, "validos":47},
+    {"exec":"Adriana",           "zona":"Lima",    "mes":"MAR","ucu":4, "adn":3, "tamizaje":2, "myprenatal":0,"seg_total":1,"leads":76, "validos":59},
+    # ── ABRIL ── (Adler ingresa a Comercial desde ABR; ex-asesores sin data)
+    {"exec":"Adler Rosales",     "zona":"Lima",    "mes":"ABR","ucu":5, "adn":2, "tamizaje":2, "myprenatal":1,"seg_total":0,"leads":0,  "validos":0},
+    {"exec":"Heinrrich Stechmann","zona":"Provincia","mes":"ABR","ucu":7, "adn":0,"tamizaje":0,"myprenatal":3,"seg_total":3,"leads":0,  "validos":0},
+    {"exec":"Liseth Rondon",     "zona":"Lima",    "mes":"ABR","ucu":7, "adn":1, "tamizaje":1, "myprenatal":0,"seg_total":2,"leads":0,  "validos":0},
+    {"exec":"Carolina Vasques",  "zona":"Lima",    "mes":"ABR","ucu":6, "adn":0, "tamizaje":1, "myprenatal":0,"seg_total":0,"leads":0,  "validos":0},
+    # ── MAYO ── (parcial al 18/05)
+    {"exec":"Adler Rosales",     "zona":"Lima",    "mes":"MAY","ucu":9, "adn":8, "tamizaje":7, "myprenatal":1,"seg_total":5,"leads":42, "validos":0},
+    {"exec":"Heinrrich Stechmann","zona":"Provincia","mes":"MAY","ucu":17,"adn":9,"tamizaje":11,"myprenatal":4,"seg_total":8,"leads":226,"validos":0},
+    {"exec":"Liseth Rondon",     "zona":"Lima",    "mes":"MAY","ucu":17,"adn":3, "tamizaje":7, "myprenatal":3,"seg_total":7,"leads":197,"validos":0},
+    {"exec":"Carolina Vasques",  "zona":"Lima",    "mes":"MAY","ucu":15,"adn":3, "tamizaje":6, "myprenatal":0,"seg_total":4,"leads":135,"validos":0},
+    # ── JUNIO ── Fuente: SEGUIMIENTO PROSPECCION 2026 - JUN-26 (VENTAS POR ASESOR COMERCIAL).
+    # Leads/válidos de junio aún no cargados en la hoja → 0. Claudia: nueva asesora.
+    {"exec":"Adler Rosales",     "zona":"Lima",    "mes":"JUN","ucu":8, "adn":3, "tamizaje":5, "myprenatal":0,"seg_total":15,"leads":0,"validos":0},
+    {"exec":"Heinrrich Stechmann","zona":"Provincia","mes":"JUN","ucu":6, "adn":3,"tamizaje":3,"myprenatal":1,"seg_total":4, "leads":0,"validos":0},
+    {"exec":"Liseth Rondon",     "zona":"Lima",    "mes":"JUN","ucu":9, "adn":2, "tamizaje":4, "myprenatal":0,"seg_total":9, "leads":0,"validos":0},
+    {"exec":"Carolina Vasques",  "zona":"Lima",    "mes":"JUN","ucu":9, "adn":1, "tamizaje":2, "myprenatal":0,"seg_total":7, "leads":0,"validos":0},
+    {"exec":"Claudia",           "zona":"Lima",    "mes":"JUN","ucu":1, "adn":0, "tamizaje":0, "myprenatal":0,"seg_total":0, "leads":0,"validos":0},
+]
+
+# Asegurar Seguridad Total en mix (datos vienen de vendedores)
+seg_por_mes = {}
+for v in vendedores:
+    seg_por_mes[v["mes"]] = seg_por_mes.get(v["mes"], 0) + v.get("seg_total", 0)
+for m, n in seg_por_mes.items():
+    if n > 0 and "Seguridad Total" not in [r["servicio"] for r in mix if r["mes"]==m]:
+        mix.append({"mes": m, "servicio": "Seguridad Total", "servicios": n, "venta": 0})
+
+_comms_raw=[
+    {"fecha":"2026-01-20","mes":"ENE","canal":"OPEN LAB","audiencia":"Clientes","tipo":"Evento","tema":"Open Lab + Rebranding + Tamizaje"},
+    {"fecha":"2026-02-12","mes":"FEB","canal":"WATI","audiencia":"Médicos","tipo":"Video","tema":"Video 2: Más que Criopreservación"},
+    {"fecha":"2026-02-16","mes":"FEB","canal":"MAIL","audiencia":"Médicos","tipo":"Newsletter","tema":"Más que Criopreservación"},
+    {"fecha":"2026-02-17","mes":"FEB","canal":"MAIL","audiencia":"Clientes","tipo":"Email","tema":"Referidos + Seguridad Total + Open Lab"},
+    {"fecha":"2026-03-02","mes":"MAR","canal":"WATI","audiencia":"Obstetras","tipo":"Newsletter","tema":"Células Criopreservadas 29 Años"},
+    {"fecha":"2026-03-03","mes":"MAR","canal":"BOLETÍN","audiencia":"Clientes","tipo":"Email","tema":"Open Lab + Seguridad Total + Referidos"},
+    {"fecha":"2026-03-09","mes":"MAR","canal":"MAIL","audiencia":"Médicos","tipo":"Newsletter","tema":"Células Criopreservadas 29 Años"},
+    {"fecha":"2026-03-09","mes":"MAR","canal":"MAIL","audiencia":"Secretarias","tipo":"Newsletter","tema":"Células Criopreservadas 29 Años"},
+    {"fecha":"2026-03-10","mes":"MAR","canal":"PROMO","audiencia":"Clientes","tipo":"Promo","tema":"ADN S/890"},
+    {"fecha":"2026-03-23","mes":"MAR","canal":"WATI","audiencia":"Médicos","tipo":"Video","tema":"Video 3: Más que Criopreservación"},
+    {"fecha":"2026-03-23","mes":"MAR","canal":"WATI","audiencia":"Obstetras","tipo":"Video","tema":"Video 3 + Invitación Evento"},
+    {"fecha":"2026-03-23","mes":"MAR","canal":"WATI","audiencia":"Secretarias","tipo":"Video","tema":"Video 3: Más que Criopreservación"},
+    {"fecha":"2026-04-06","mes":"ABR","canal":"MAIL","audiencia":"Secretarias","tipo":"Newsletter","tema":"Test Prenatal + Sorteo Día Secretaria"},
+    {"fecha":"2026-04-10","mes":"ABR","canal":"MAIL","audiencia":"Médicos","tipo":"Newsletter","tema":"Test Prenatal + Link prospección"},
+    {"fecha":"2026-04-10","mes":"ABR","canal":"WATI","audiencia":"Prospectos","tipo":"WhatsApp","tema":"Beneficios de Criopreservación"},
+    {"fecha":"2026-04-10","mes":"ABR","canal":"CORREO","audiencia":"Anualidades","tipo":"Cobranza","tema":"Notificación cobranza + Promo 50%"},
+    {"fecha":"2026-04-15","mes":"ABR","canal":"WATI","audiencia":"Prospectos","tipo":"WhatsApp","tema":"Beneficios del Tamizaje"},
+    {"fecha":"2026-04-16","mes":"ABR","canal":"EVENTO","audiencia":"Obstetras","tipo":"Evento","tema":"Evento Obstetras Piso 13"},
+    {"fecha":"2026-04-18","mes":"ABR","canal":"WATI","audiencia":"Prospectos","tipo":"WhatsApp","tema":"Beneficios de Criopreservación"},
+    {"fecha":"2026-04-20","mes":"ABR","canal":"WATI","audiencia":"Secretarias","tipo":"Video","tema":"Video 2 + Sorteo"},
+    {"fecha":"2026-04-24","mes":"ABR","canal":"WATI","audiencia":"Prospectos","tipo":"WhatsApp","tema":"Beneficios My Prenatal"},
+    {"fecha":"2026-04-26","mes":"ABR","canal":"EVENTO","audiencia":"Secretarias","tipo":"Evento","tema":"Día Secretaria: SORTEO 2 SPA"},
+    {"fecha":"2026-04-27","mes":"ABR","canal":"MAIL","audiencia":"Clientes","tipo":"Cobranza","tema":"Cobranza 50%"},
+    {"fecha":"2026-05-05","mes":"MAY","canal":"WATI","audiencia":"Médicos","tipo":"WhatsApp","tema":"Sorteo ADN + registro"},
+    {"fecha":"2026-05-05","mes":"MAY","canal":"WATI","audiencia":"Obstetras","tipo":"Newsletter","tema":"Comparativo MyPrenatal"},
+    {"fecha":"2026-05-05","mes":"MAY","canal":"MAIL","audiencia":"Clientes","tipo":"Cobranza","tema":"Cobranza 50%"},
+    {"fecha":"2026-05-05","mes":"MAY","canal":"WATI","audiencia":"Prospectos","tipo":"WhatsApp","tema":"Promo S/2,000 — Descalificados Marzo"},
+    {"fecha":"2026-05-05","mes":"MAY","canal":"MAIL","audiencia":"Anualidades","tipo":"Cobranza","tema":"Cobranza + Promo 50%"},
+    {"fecha":"2026-05-08","mes":"MAY","canal":"BOLETÍN","audiencia":"Clientes","tipo":"Email","tema":"Día de la Madre + Seguridad Total"},
+    {"fecha":"2026-05-11","mes":"MAY","canal":"WATI","audiencia":"Médicos","tipo":"WhatsApp","tema":"Ganadores ADN + Link prospección"},
+    {"fecha":"2026-05-11","mes":"MAY","canal":"WATI","audiencia":"Obstetras","tipo":"WhatsApp","tema":"Sorteo + 3 Cupones Nunari"},
+    {"fecha":"2026-05-11","mes":"MAY","canal":"WATI","audiencia":"Secretarias","tipo":"WhatsApp","tema":"Anuncio ganadoras + link prospección"},
+    {"fecha":"2026-05-18","mes":"MAY","canal":"MAIL","audiencia":"Clientes","tipo":"Email","tema":"Open Lab + Ganadores Día de la Madre"},
+    {"fecha":"2026-05-25","mes":"MAY","canal":"WATI","audiencia":"Médicos","tipo":"Video","tema":"Video + Invitación taller MyPrenatal"},
+    {"fecha":"2026-05-25","mes":"MAY","canal":"WATI","audiencia":"Obstetras","tipo":"Video","tema":"Video + Link de prospección"},
+    {"fecha":"2026-05-25","mes":"MAY","canal":"WATI","audiencia":"Secretarias","tipo":"Video","tema":"Video + Invitación taller + Link"},
+    {"fecha":"2026-06-08","mes":"JUN","canal":"MAIL","audiencia":"Médicos","tipo":"Newsletter","tema":"Veritas y CrioCord"},
+    {"fecha":"2026-06-08","mes":"JUN","canal":"MAIL","audiencia":"Obstetras","tipo":"Newsletter","tema":"Veritas y CrioCord"},
+    {"fecha":"2026-06-08","mes":"JUN","canal":"MAIL","audiencia":"Secretarias","tipo":"Newsletter","tema":"Veritas y CrioCord"},
+    {"fecha":"2026-06-22","mes":"JUN","canal":"WATI","audiencia":"Médicos","tipo":"Evento","tema":"Taller Online MyPrenatal: Dr. Armando Rojas"},
+    {"fecha":"2026-06-22","mes":"JUN","canal":"WATI","audiencia":"Obstetras","tipo":"Evento","tema":"Evento Obstetras + NUEVO LINK"},
+]
+cron_comms=sorted([dict(r,hecho=(r["fecha"]<=TODAY)) for r in _comms_raw],key=lambda x:x["fecha"])
+
+cron_act=[
+    {"actividad":"Cierres Contables","cat":"Contabilidad","hecho":True,"ENE":"31","FEB":"27","MAR":"31","ABR":"30","MAY":"29","JUN":"30","JUL":"31","AGO":"31","SEP":"30","OCT":"30","NOV":"30","DIC":"31"},
+    {"actividad":"EEFF","cat":"Contabilidad","hecho":True,"ENE":"9","FEB":"6","MAR":"6","ABR":"9","MAY":"8","JUN":"5","JUL":"6","AGO":"7","SEP":"7","OCT":"7","NOV":"6","DIC":"7"},
+    {"actividad":"Inicio de Ciclo","cat":"Interno","hecho":True,"ENE":"9","FEB":"6","MAR":"3","ABR":"—","MAY":"2","JUN":"—","JUL":"—","AGO":"—","SEP":"—","OCT":"—","NOV":"—","DIC":"—"},
+    {"actividad":"Entrena. Ejecutivos","cat":"Interno","hecho":True,"ENE":"12-19","FEB":"—","MAR":"07-14","ABR":"—","MAY":"06-13","JUN":"—","JUL":"—","AGO":"—","SEP":"—","OCT":"—","NOV":"—","DIC":"—"},
+    {"actividad":"Entrena. Reps VM","cat":"Interno","hecho":True,"ENE":"20-23","FEB":"—","MAR":"15-20","ABR":"—","MAY":"14-17","JUN":"—","JUL":"—","AGO":"—","SEP":"—","OCT":"—","NOV":"—","DIC":"—"},
+    {"actividad":"Open Lab","cat":"Evento","hecho":True,"ENE":"20","FEB":"17","MAR":"—","ABR":"—","MAY":"18","JUN":"—","JUL":"—","AGO":"—","SEP":"—","OCT":"—","NOV":"—","DIC":"—"},
+    {"actividad":"Expoferia Lima / ADN","cat":"Evento","hecho":False,"ENE":"—","FEB":"—","MAR":"—","ABR":"—","MAY":"—","JUN":"—","JUL":"27-29","AGO":"—","SEP":"—","OCT":"24-26","NOV":"—","DIC":"16-18"},
+    {"actividad":"Congreso Med. Reproductiva","cat":"Evento","hecho":False,"ENE":"—","FEB":"—","MAR":"—","ABR":"—","MAY":"—","JUN":"—","JUL":"—","AGO":"08-11","SEP":"—","OCT":"—","NOV":"—","DIC":"—"},
+    {"actividad":"Evento Obstetras","cat":"Evento","hecho":True,"ENE":"—","FEB":"—","MAR":"—","ABR":"16","MAY":"—","JUN":"—","JUL":"—","AGO":"—","SEP":"—","OCT":"—","NOV":"—","DIC":"—"},
+    {"actividad":"Día de la Secretaria","cat":"Campaña","hecho":True,"ENE":"—","FEB":"—","MAR":"—","ABR":"26","MAY":"—","JUN":"—","JUL":"—","AGO":"—","SEP":"—","OCT":"—","NOV":"—","DIC":"—"},
+    {"actividad":"Día Madre / Doctora","cat":"Campaña","hecho":True,"ENE":"—","FEB":"—","MAR":"—","ABR":"—","MAY":"8","JUN":"—","JUL":"—","AGO":"—","SEP":"—","OCT":"—","NOV":"—","DIC":"—"},
+    {"actividad":"Sorteo ADN","cat":"Campaña","hecho":True,"ENE":"—","FEB":"—","MAR":"—","ABR":"—","MAY":"5","JUN":"—","JUL":"—","AGO":"—","SEP":"—","OCT":"—","NOV":"—","DIC":"—"},
+    {"actividad":"Taller Online MyPrenatal","cat":"Evento","hecho":False,"ENE":"—","FEB":"—","MAR":"—","ABR":"—","MAY":"—","JUN":"22","JUL":"—","AGO":"—","SEP":"—","OCT":"—","NOV":"—","DIC":"—"},
+    {"actividad":"Cenas con Médicos","cat":"Evento","hecho":False,"ENE":"?","FEB":"?","MAR":"?","ABR":"?","MAY":"?","JUN":"?","JUL":"?","AGO":"?","SEP":"?","OCT":"?","NOV":"?","DIC":"?"},
+]
+
+proyectos_default=[
+    {"id":"P001","nombre":"Lanzamiento Nueva Web + CrioWallet","resp":"Daniel Walcheff","inicio":"2026-05-01","fin":"2026-07-31","estado":"EN_PROGRESO","notas":"Ver plan de marketing Canva."},
+    {"id":"P002","nombre":"Expoferia Maternidad Lima — Stand ADN","resp":"Daniel Walcheff","inicio":"2026-07-27","fin":"2026-07-29","estado":"PENDIENTE","notas":"Cotizar espacio y stand. Jul 27-29."},
+    {"id":"P003","nombre":"Congreso Peruano Medicina Reproductiva","resp":"Daniel Walcheff","inicio":"2026-08-08","fin":"2026-08-11","estado":"PENDIENTE","notas":"Confirmar participación y cotizar stand."},
+    {"id":"P004","nombre":"Taller Online MyPrenatal — Dr. Armando Rojas","resp":"Daniel Walcheff","inicio":"2026-06-22","fin":"2026-06-22","estado":"PENDIENTE","notas":"Webinar con nuevo link de prospección."},
+    {"id":"P005","nombre":"Open Lab Mayo 2026","resp":"Daniel Walcheff","inicio":"2026-05-18","fin":"2026-05-18","estado":"FINALIZADO","notas":"Completado. Ganadores Día de la Madre."},
+    {"id":"P006","nombre":"Evento Obstetras — Piso 13","resp":"Daniel Walcheff","inicio":"2026-04-16","fin":"2026-04-16","estado":"FINALIZADO","notas":"Realizado. Presentación completa."},
+    {"id":"P007","nombre":"Sorteo ADN + Registro Mayo","resp":"Daniel Walcheff","inicio":"2026-05-05","fin":"2026-05-11","estado":"FINALIZADO","notas":"Ganadores comunicados 11/05."},
+    {"id":"P008","nombre":"Campaña Seguridad Total Q2","resp":"Daniel Walcheff","inicio":"2026-05-01","fin":"2026-06-30","estado":"EN_PROGRESO","notas":"Email + WATI a clientes activos."},
+    {"id":"P009","nombre":"Incorporar Diana — VM Provincia (Junio)","resp":"Daniel Walcheff","inicio":"2026-06-01","fin":"2026-06-30","estado":"PENDIENTE","notas":"Onboarding nueva representante."},
+    {"id":"P010","nombre":"Semana de la Maternidad Saludable","resp":"Daniel Walcheff","inicio":"2026-05-01","fin":"2026-05-31","estado":"EN_PROGRESO","notas":"Campaña digital activa."},
+]
+
+
+# ── CMO SCORECARD PERU 2026 ────────────────────────────────────
+SCORECARD_DATA = {
+    "meses": ["ENE","FEB","MAR","ABR","MAY"],
+    "meta_fy_ventas": 968,
+    "sections": [
+        {
+            "id": "digital", "num": "①",
+            "title": "Digital Performance",
+            "color": "#2563EB",
+            "kpis": [
+                {"id":"leads_digital","label":"Total Leads Digital","fmt":"num","better":"higher",
+                 "meta_fy":13500,"real_fy":5386,
+                 "meta":[1000,1000,1000,1000,1000],"real":[1295,981,992,1013,1105]},
+                {"id":"ventas_digitales","label":"Ventas Digitales","fmt":"num","better":"higher",
+                 "meta_fy":656,"real_fy":204,
+                 "meta":[54,35,39,54,54],"real":[54,35,45,26,44]},
+                {"id":"cpl","label":"CPL (MXN \u00f7 leads)","fmt":"mxn","better":"lower",
+                 "meta_fy":48,"real_fy":29,"note":"MXN \u00b7 Menor = Mejor · Prom. mensual",
+                 "meta":[71,70,69,51,38],"real":[21,26,33,35,31]},
+                {"id":"cr_digital","label":"CR Digital (%)","fmt":"pct","better":"higher",
+                 "meta_fy":0.045,"real_fy":0.0379,
+                 "meta":[0.045,0.045,0.045,0.045,0.045],"real":[0.0417,0.0357,0.0454,0.0257,0.0398]}
+            ]
+        },
+        {
+            "id": "influencer", "num": "②",
+            "title": "Influencer & Partnerships",
+            "color": "#7C3AED",
+            "kpis": [
+                {"id":"influencers","label":"Influencers Activos","fmt":"num","better":"higher",
+                 "meta_fy":12,"real_fy":5,
+                 "meta":[1,1,1,1,1],"real":[1,1,1,1,1]},
+                {"id":"aliados","label":"Aliados Activos","fmt":"num","better":"higher",
+                 "meta_fy":24,"real_fy":15,
+                 "meta":[2,2,2,2,2],"real":[3,3,3,3,3]}
+            ]
+        },
+        {
+            "id": "leads", "num": "③",
+            "title": "Leads Totales",
+            "color": "#0891B2",
+            "kpis": [
+                {"id":"leads_online","label":"Leads Online (Digital)","fmt":"num","better":"higher",
+                 "note":"Google Ads, Meta Ads, MKT digital",
+                 "meta_fy":13500,"real_fy":5386,
+                 "meta":[1000,1000,1000,1000,1000],"real":[1295,981,992,1013,1105]},
+                {"id":"leads_offline","label":"Leads Offline (VM + Eventos)","fmt":"num","better":"higher",
+                 "note":"Visita M\u00e9dica, ferias, referidos",
+                 "meta_fy":12000,"real_fy":4190,
+                 "meta":[1250,1250,1000,750,750],"real":[1038,1362,884,404,502]},
+                {"id":"total_leads","label":"TOTAL LEADS","fmt":"num","better":"higher","bold":True,
+                 "meta_fy":25500,"real_fy":9576,
+                 "meta":[2250,2250,2000,1750,1750],"real":[2333,2343,1876,1417,1607]}
+            ]
+        },
+        {
+            "id": "conversion", "num": "④",
+            "title": "Conversi\u00f3n",
+            "color": "#D97706",
+            "kpis": [
+                {"id":"cr_online","label":"CR Online — Lead Digital \u2192 Cliente","fmt":"pct","better":"higher",
+                 "note":"Ventas digitales / Leads digitales",
+                 "meta_fy":0.045,"real_fy":0.0379,
+                 "meta":[0.045,0.045,0.045,0.045,0.045],"real":[0.0417,0.0357,0.0454,0.0257,0.0398]},
+                {"id":"cr_offline","label":"CR Offline — Lead Offline \u2192 Cliente","fmt":"pct","better":"higher",
+                 "note":"Ventas offline / Leads offline",
+                 "meta_fy":0.045,"real_fy":0.0224,
+                 "meta":[0.045,0.045,0.045,0.045,0.045],"real":[0.023,0.012,0.028,0.020,0.029]}
+            ]
+        },
+        {
+            "id": "negocios", "num": "⑤",
+            "title": "Resultados de Negocio",
+            "color": "#059669",
+            "kpis": [
+                {"id":"ventas_criocord","label":"Ventas CrioCord (uds)","fmt":"num","better":"higher","bold":True,
+                 "meta_fy":968,"real_fy":277,
+                 "meta":[80,51,57,80,80],"real":[80,51,57,31,58]}
+            ]
+        }
+    ]
+}
+
+J={
+    "CONV":json.dumps(conv,ensure_ascii=False),
+    "MIX":json.dumps(mix,ensure_ascii=False),
+    "VM":json.dumps(vm,ensure_ascii=False),
+    "VM_CAT":json.dumps(vm_cat,ensure_ascii=False),
+    "CLIN":json.dumps(clinicas,ensure_ascii=False),
+    "VM_PROSP":json.dumps(vm_prosp,ensure_ascii=False),
+    "META_CAPT":json.dumps(META_CAPT,ensure_ascii=False),
+    "CAPT":json.dumps(vm_captadores,ensure_ascii=False),
+    "PPTO":json.dumps(ppto,ensure_ascii=False),
+    "HIST":json.dumps(historial_gastos,ensure_ascii=False),
+    "VEND":json.dumps(vendedores,ensure_ascii=False),
+    "COMMS":json.dumps(cron_comms,ensure_ascii=False),
+    "ACT":json.dumps(cron_act,ensure_ascii=False),
+    "PROY":json.dumps(proyectos_default,ensure_ascii=False),
+    "META":json.dumps(META_VEND,ensure_ascii=False),
+    "BINV":json.dumps(budget_inv,ensure_ascii=False),
+    "CAPT_REP":json.dumps(captacion_rep,ensure_ascii=False),
+    "SCORECARD":json.dumps(SCORECARD_DATA,ensure_ascii=False),
+}
+
+HTML_TMPL = """<!DOCTYPE html>
+<html lang="es" id="htmlRoot">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CrioCord — Dashboard Marketing 2026</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ── CrioCord Dashboard — Modern Design 2026 ──────────────────────────── */
+:root{
+  --negro:#0D0D0D; --negro2:#1A1A2E; --negro3:#16213E;
+  --gris-ui:#F0F2F8; --gris-borde:#E2E8F0; --gris-card:#FAFBFF;
+  --texto:#111827; --texto2:#6B7280; --texto3:#9CA3AF;
+  /* Chart palette */
+  --AZ:#2563EB; --DO:#D97706; --TQ:#059669; --NA:#EA580C;
+  --PU:#7C3AED; --RO:#DC2626; --VE:#16A34A; --CI:#0284C7;
+  /* Semantic */
+  --azul:var(--AZ); --azul2:#1D4ED8; --celes:#0284C7; --celes2:#EFF6FF; --dora:var(--DO);
+  /* Shadows */
+  --shadow-sm:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.05);
+  --shadow-md:0 4px 12px rgba(0,0,0,.08),0 2px 4px rgba(0,0,0,.04);
+  --shadow-lg:0 10px 25px rgba(0,0,0,.10),0 4px 8px rgba(0,0,0,.05);
+  /* Radius */
+  --r-sm:6px; --r-md:10px; --r-lg:14px;
+  /* Transitions */
+  --t-fast:120ms ease; --t-med:200ms ease;
+}
+
+* { box-sizing: border-box; }
+body { background:var(--gris-ui); color:var(--texto); font-family:'Inter',system-ui,sans-serif; font-size:14px; -webkit-font-smoothing:antialiased; }
+::-webkit-scrollbar { width:6px; height:6px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:#CBD5E1; border-radius:99px; }
+::-webkit-scrollbar-thumb:hover { background:#94A3B8; }
+
+/* ── Sticky wrapper ─────────────────────────────────────────── */
+#stickyTop { position:sticky; top:0; z-index:1050; }
+
+/* ── Header ─────────────────────────────────────────────────── */
+.hdr {
+  background:linear-gradient(135deg, var(--negro) 0%, var(--negro3) 100%);
+  padding:10px 24px; color:#fff;
+  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;
+  border-bottom:2px solid rgba(201,167,97,.6);
+  box-shadow:0 2px 12px rgba(0,0,0,.25);
+}
+.hdr-left { display:flex; align-items:center; gap:14px; }
+.hdr h1 { font-size:1.1rem; font-weight:700; margin:0; letter-spacing:.01em; }
+.hdr small { font-size:.7rem; opacity:.60; display:block; margin-top:1px; }
+.hdr-filter { display:flex; align-items:center; gap:8px; }
+.hdr-filter label { font-size:.72rem; opacity:.75; white-space:nowrap; font-weight:500; }
+.hdr-filter button {
+  font-size:.72rem; padding:4px 12px; border-radius:20px;
+  border:1px solid rgba(255,255,255,.25); background:rgba(255,255,255,.10);
+  color:#fff; cursor:pointer; font-family:'Inter',sans-serif; font-weight:500;
+  transition:background var(--t-fast), border-color var(--t-fast);
+}
+.hdr-filter button:hover { background:rgba(255,255,255,.20); border-color:rgba(255,255,255,.4); }
+
+/* ── Nav tabs ────────────────────────────────────────────────── */
+.nav-tabs {
+  border-bottom:none; background:#fff;
+  padding:6px 16px 0; flex-wrap:nowrap; overflow-x:auto;
+  box-shadow:0 2px 6px rgba(0,0,0,.06);
+  gap:2px;
+}
+.nav-tabs .nav-link {
+  color:var(--texto2); font-weight:600; border:none;
+  padding:8px 14px; font-size:.78rem; white-space:nowrap;
+  border-radius:var(--r-sm) var(--r-sm) 0 0;
+  transition:all var(--t-fast); position:relative;
+  letter-spacing:.01em;
+}
+.nav-tabs .nav-link::after {
+  content:''; position:absolute; bottom:0; left:0; right:0; height:2px;
+  background:transparent; border-radius:2px 2px 0 0;
+  transition:background var(--t-fast);
+}
+.nav-tabs .nav-link.active {
+  color:var(--negro); background:#F8FAFF; font-weight:700;
+}
+.nav-tabs .nav-link.active::after { background:var(--AZ); }
+.nav-tabs .nav-link:hover:not(.active) { background:#F1F5F9; color:var(--negro); }
+.tab-content { padding:16px; }
+
+/* ── Cards ───────────────────────────────────────────────────── */
+.card {
+  border:1px solid var(--gris-borde); border-radius:var(--r-lg);
+  box-shadow:var(--shadow-md); background:#fff;
+  transition:box-shadow var(--t-med), transform var(--t-med);
+  overflow:hidden;
+}
+.card:hover { box-shadow:var(--shadow-lg); }
+.card-header {
+  background:linear-gradient(135deg, var(--negro2) 0%, var(--negro) 100%);
+  color:#fff; font-weight:600;
+  border-radius:0 !important;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:9px 14px; font-size:.8rem; letter-spacing:.01em;
+  border-bottom:1px solid rgba(255,255,255,.06);
+}
+.card-header span { flex:1; }
+.btn-src {
+  background:rgba(255,255,255,.12); color:rgba(255,255,255,.85);
+  border:1px solid rgba(255,255,255,.2); border-radius:var(--r-sm);
+  padding:2px 8px; font-size:.68rem; text-decoration:none;
+  white-space:nowrap; margin-left:6px;
+  transition:all var(--t-fast);
+}
+.btn-src:hover { background:rgba(255,255,255,.22); color:#fff; }
+
+/* ── KPI Boxes ───────────────────────────────────────────────── */
+.tbl-toggle {
+  display:flex; align-items:center; justify-content:space-between;
+  cursor:pointer; padding:8px 12px;
+  background:#F8FAFC; border:1px solid var(--gris-borde);
+  border-radius:var(--r-md); margin-bottom:6px;
+  user-select:none; font-size:.73rem; font-weight:600; color:var(--texto2);
+  transition:all var(--t-fast);
+}
+.tbl-toggle:hover { background:#EEF2FF; border-color:#C7D2FE; color:var(--AZ); }
+.tbl-toggle .chev { transition:transform .22s ease; font-size:.82rem; }
+.tbl-toggle.open .chev { transform:rotate(180deg); }
+.tbl-body { overflow:hidden; transition:max-height .28s cubic-bezier(.4,0,.2,1); }
+.kpi-box {
+  background:#fff;
+  border:1px solid var(--gris-borde);
+  border-radius:var(--r-lg);
+  padding:14px 16px;
+  box-shadow:var(--shadow-sm);
+  text-align:center;
+  transition:all var(--t-med);
+  position:relative; overflow:hidden;
+}
+.kpi-box::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:3px;
+  background:linear-gradient(90deg,var(--AZ),var(--CI));
+  opacity:0; transition:opacity var(--t-med);
+}
+.kpi-box:hover { box-shadow:var(--shadow-md); transform:translateY(-1px); }
+.kpi-box:hover::before { opacity:1; }
+.kpi-box .val { font-size:1.6rem; font-weight:800; color:var(--negro); letter-spacing:-.02em; line-height:1.1; }
+.kpi-box .lbl { font-size:.71rem; color:var(--texto2); margin-top:4px; font-weight:500; }
+.kpi-box .sub { font-size:.65rem; color:var(--celes); margin-top:2px; font-weight:400; }
+
+/* ── Buttons ─────────────────────────────────────────────────── */
+.btn-fuente {
+  background:var(--negro); color:#fff; border:none;
+  border-radius:20px; padding:5px 14px;
+  font-size:.72rem; font-weight:600; cursor:pointer;
+  text-decoration:none; letter-spacing:.01em;
+  transition:all var(--t-fast);
+}
+.btn-fuente:hover { background:#374151; color:#fff; box-shadow:var(--shadow-sm); }
+.btn-exp {
+  background:#fff; color:var(--negro);
+  border:1.5px solid #D1D5DB; border-radius:20px;
+  padding:5px 14px; font-size:.72rem; font-weight:600; cursor:pointer;
+  transition:all var(--t-fast);
+}
+.btn-exp:hover { background:var(--negro); color:#fff; border-color:var(--negro); }
+
+/* ── Tables ──────────────────────────────────────────────────── */
+.tabla-resp { overflow-x:auto; border-radius:var(--r-md); }
+table.dtbl { width:100%; border-collapse:collapse; font-size:.78rem; }
+table.dtbl th {
+  background:linear-gradient(135deg,var(--negro2),var(--negro));
+  color:#fff; padding:8px 10px; text-align:left; font-weight:600;
+  letter-spacing:.02em; font-size:.72rem; text-transform:uppercase;
+}
+table.dtbl th:first-child { border-radius:var(--r-sm) 0 0 0; }
+table.dtbl th:last-child { border-radius:0 var(--r-sm) 0 0; }
+table.dtbl td { padding:6px 9px; border-bottom:1px solid #F1F5F9; color:var(--texto); }
+table.dtbl tr:nth-child(even) td { background:#F8FAFC; }
+table.dtbl tr:hover td { background:#EEF2FF; transition:background var(--t-fast); }
+table.dtbl tr.hecho-si td { background:#DCFCE7 !important; }
+
+/* ── Badges ──────────────────────────────────────────────────── */
+.badge-fin  { background:#DCFCE7; color:#166534; padding:2px 8px; border-radius:99px; font-size:.69rem; font-weight:700; }
+.badge-prog { background:#FEF9C3; color:#854D0E; padding:2px 8px; border-radius:99px; font-size:.69rem; font-weight:700; }
+.badge-det  { background:#FEE2E2; color:#991B1B; padding:2px 8px; border-radius:99px; font-size:.69rem; font-weight:700; }
+.badge-pend { background:#F1F5F9; color:#475569; padding:2px 8px; border-radius:99px; font-size:.69rem; font-weight:700; }
+
+/* ── Section labels ──────────────────────────────────────────── */
+.sec-label {
+  font-size:.7rem; font-weight:700; letter-spacing:.08em;
+  color:var(--texto3); text-transform:uppercase;
+  margin:10px 0 6px; padding-left:10px;
+  border-left:3px solid var(--AZ);
+}
+
+/* ── Misc ────────────────────────────────────────────────────── */
+.dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; }
+.dot-v { background:#16A34A; } .dot-a { background:#D97706; } .dot-r { background:#DC2626; }
+.formula-box {
+  background:#F0F4FF; border-left:3px solid var(--AZ);
+  border-radius:0 var(--r-sm) var(--r-sm) 0;
+  padding:8px 13px; margin:4px 0; font-size:.77rem;
+}
+.formula-box strong { color:var(--negro); }
+.sec-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:6px; }
+.sec-header h5 { margin:0; color:var(--negro); font-weight:700; font-size:1rem; letter-spacing:-.01em; }
+.btn-group-top { display:flex; gap:6px; flex-wrap:wrap; }
+.filter-bar {
+  display:flex; gap:8px; align-items:center; flex-wrap:wrap;
+  margin-bottom:12px; background:#fff; padding:8px 14px;
+  border-radius:var(--r-lg); box-shadow:var(--shadow-sm);
+  border:1px solid var(--gris-borde);
+}
+.filter-bar label { font-size:.73rem; font-weight:600; color:var(--texto); white-space:nowrap; }
+.filter-bar select {
+  font-size:.73rem; padding:4px 8px; border:1px solid #D1D5DB;
+  border-radius:var(--r-sm); background:#fff; color:var(--texto);
+  transition:border-color var(--t-fast);
+}
+.filter-bar select:focus { border-color:var(--AZ); outline:none; box-shadow:0 0 0 3px rgba(37,99,235,.15); }
+.mayo-note {
+  background:#FFFBEB; border-left:3px solid #D97706;
+  border-radius:0 var(--r-sm) var(--r-sm) 0;
+  padding:7px 13px; font-size:.74rem; color:#92400E; margin-bottom:10px;
+}
+#proyForm input,#proyForm select,#proyForm textarea {
+  border:1px solid #D1D5DB; border-radius:var(--r-sm);
+  padding:6px 10px; font-size:.8rem; width:100%;
+  font-family:'Inter',sans-serif;
+  transition:border-color var(--t-fast), box-shadow var(--t-fast);
+}
+#proyForm input:focus,#proyForm select:focus,#proyForm textarea:focus {
+  border-color:var(--AZ); outline:none; box-shadow:0 0 0 3px rgba(37,99,235,.12);
+}
+#proyForm label { font-size:.74rem; font-weight:600; color:var(--texto); margin-bottom:3px; }
+.btn-guardar {
+  background:linear-gradient(135deg,var(--negro2),var(--negro));
+  color:#fff; border:none; border-radius:var(--r-md);
+  padding:7px 20px; font-weight:700; font-size:.82rem; cursor:pointer;
+  letter-spacing:.01em; transition:all var(--t-fast);
+  font-family:'Inter',sans-serif;
+}
+.btn-guardar:hover { box-shadow:var(--shadow-md); transform:translateY(-1px); }
+.btn-del {
+  background:#FEE2E2; color:#991B1B; border:1px solid #FECACA;
+  border-radius:var(--r-sm); padding:3px 8px; font-size:.69rem; cursor:pointer;
+  font-weight:600; transition:all var(--t-fast);
+}
+.btn-del:hover { background:#DC2626; color:#fff; }
+/* Dropdown en card-header oscuro */
+.svc-select {
+  font-size:.71rem; padding:4px 9px; border-radius:var(--r-sm);
+  border:1px solid rgba(255,255,255,.2);
+  background:rgba(255,255,255,.08); color:rgba(255,255,255,.9);
+  cursor:pointer; min-width:130px;
+  transition:all var(--t-fast); font-family:'Inter',sans-serif;
+}
+.svc-select:hover { background:rgba(255,255,255,.15); border-color:rgba(255,255,255,.35); }
+.svc-select option { background:#1A1A2E; color:#fff; }
+/* Light variant — para usar en fondos blancos (kpi-box) */
+.svc-select-light {
+  font-size:.71rem; padding:4px 10px; border-radius:20px;
+  border:1.5px solid #D1D5DB; background:#F8FAFC; color:var(--texto);
+  cursor:pointer; min-width:130px; font-family:'Inter',sans-serif;
+  font-weight:500; transition:all var(--t-fast);
+}
+.svc-select-light:hover { border-color:var(--AZ); background:#EFF6FF; color:var(--AZ); }
+.svc-select-light:focus { outline:none; border-color:var(--AZ); box-shadow:0 0 0 3px rgba(37,99,235,.12); }
+/* Card body padding override */
+.card-body.p-2 { padding:10px !important; }
+/* Row gap override */
+.row.g-2 { --bs-gutter-x:.5rem; --bs-gutter-y:.5rem; }
+.row.g-3 { --bs-gutter-x:.75rem; --bs-gutter-y:.75rem; }
+
+/* ── Dark Mode ──────────────────────────────────────────────────── */
+[data-theme="dark"] {
+  --gris-ui:#0D1117; --gris-borde:#30363D; --gris-card:#161B22;
+  --texto:#E6EDF3; --texto2:#8B949E; --texto3:#6E7681;
+  --shadow-sm:0 1px 3px rgba(0,0,0,.5); --shadow-md:0 4px 16px rgba(0,0,0,.6);
+}
+/* ── Body ── */
+[data-theme="dark"] body { background:#0D1117 !important; }
+
+/* ── Cards — fondo sutil + borde visible ── */
+[data-theme="dark"] .card {
+  background:#161B22 !important;
+  border:1px solid #30363D !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,.4), inset 0 0 0 1px rgba(255,255,255,.04) !important;
+}
+[data-theme="dark"] .card-body { background:#161B22 !important; }
+
+/* ── Catch-all para inline background:#fff ── */
+[data-theme="dark"] div[style*="background:#fff"] {
+  background:#1C2128 !important;
+  border-color:#30363D !important;
+}
+[data-theme="dark"] div[style*="background:#F8FAFC"] { background:#21262D !important; }
+[data-theme="dark"] div[style*="background:#FFFBEB"] { background:#261700 !important; }
+[data-theme="dark"] button[style*="background:#fff"] {
+  background:#1C2128 !important;
+  color:#E6EDF3 !important;
+  border-color:#30363D !important;
+}
+
+/* ── Nav tabs ── */
+[data-theme="dark"] .nav-tabs { background:#010409 !important; box-shadow:0 2px 8px rgba(0,0,0,.6) !important; }
+[data-theme="dark"] .nav-tabs .nav-link { color:#8B949E !important; }
+[data-theme="dark"] .nav-tabs .nav-link.active { color:#E6EDF3 !important; background:#161B22 !important; }
+[data-theme="dark"] .nav-tabs .nav-link:hover:not(.active) { background:#21262D !important; color:#E6EDF3 !important; }
+
+/* ── Tablas — anula TODOS los colores inline ── */
+[data-theme="dark"] table td { color:#E6EDF3 !important; background:#161B22 !important; border-color:#21262D !important; }
+[data-theme="dark"] table tr { border-bottom-color:#21262D !important; }
+[data-theme="dark"] table tr:nth-child(even) td { background:#0D1117 !important; }
+[data-theme="dark"] table tr:hover td { background:#1C2128 !important; }
+[data-theme="dark"] table th { color:#8B949E !important; background:#21262D !important; border-color:#30363D !important; }
+[data-theme="dark"] table thead tr { background:#21262D !important; border-bottom-color:#30363D !important; }
+[data-theme="dark"] table.dtbl td { border-color:#21262D !important; color:#E6EDF3 !important; }
+[data-theme="dark"] table.dtbl tr:nth-child(even) td { background:#0D1117 !important; }
+[data-theme="dark"] table.dtbl tr:hover td { background:#1C2128 !important; }
+
+/* ── Barras de progreso mini ── */
+[data-theme="dark"] div[style*="background:#E2E8F0"] { background:#30363D !important; }
+[data-theme="dark"] div[style*="background:#F8FAFF"] { background:#1C2128 !important; }
+
+/* ── KPI boxes ── */
+[data-theme="dark"] .kpi-box { background:#1C2128 !important; border:1px solid #30363D !important; }
+[data-theme="dark"] .kpi-box .val { color:#E6EDF3 !important; }
+[data-theme="dark"] .kpi-box .lbl { color:#8B949E !important; }
+[data-theme="dark"] .kpi-box .sub { color:#58A6FF !important; }
+
+/* ── Formula boxes ── */
+[data-theme="dark"] .formula-box { background:#0D1F3A !important; border-color:#1F6FEB !important; color:#CDD9E5 !important; }
+[data-theme="dark"] .formula-box strong { color:#E6EDF3 !important; }
+
+/* ── Filter bars ── */
+[data-theme="dark"] .filter-bar { background:#1C2128 !important; border-color:#30363D !important; }
+[data-theme="dark"] .filter-bar select,
+[data-theme="dark"] .filter-bar input { background:#0D1117 !important; color:#E6EDF3 !important; border-color:#30363D !important; }
+[data-theme="dark"] .filter-bar label { color:#8B949E !important; }
+[data-theme="dark"] select, [data-theme="dark"] input[type="number"] { background:#0D1117 !important; color:#E6EDF3 !important; border-color:#30363D !important; }
+
+/* ── Collapsible / tbl ── */
+[data-theme="dark"] .tbl-toggle { background:#1C2128 !important; border-color:#30363D !important; color:#8B949E !important; }
+[data-theme="dark"] .tbl-toggle:hover { background:#21262D !important; border-color:#1F6FEB !important; color:#58A6FF !important; }
+[data-theme="dark"] .tbl-body { background:#161B22 !important; }
+
+/* ── Section headers ── */
+[data-theme="dark"] .sec-header { background:#1C2128 !important; }
+[data-theme="dark"] .sec-header h5, [data-theme="dark"] .sec-header span { color:#E6EDF3 !important; }
+
+/* ── Badges ── */
+[data-theme="dark"] .badge-fin  { background:#1A3A2A !important; color:#3FB950 !important; }
+[data-theme="dark"] .badge-prog { background:#3A2500 !important; color:#F0883E !important; }
+[data-theme="dark"] .badge-det  { background:#3A0F0F !important; color:#FF7B72 !important; }
+[data-theme="dark"] .badge-pend { background:#21262D !important; color:#8B949E !important; }
+
+/* ── Selects y forms ── */
+[data-theme="dark"] .svc-select-light { background:#1C2128 !important; color:#E6EDF3 !important; border-color:#30363D !important; }
+[data-theme="dark"] #proyForm input,
+[data-theme="dark"] #proyForm select,
+[data-theme="dark"] #proyForm textarea { background:#0D1117 !important; color:#E6EDF3 !important; border-color:#30363D !important; }
+[data-theme="dark"] #proyForm label { color:#CDD9E5 !important; }
+[data-theme="dark"] .btn-del { background:#3A0F0F !important; color:#FF7B72 !important; border-color:#6E2D2D !important; }
+
+/* ── Amber warning ── */
+[data-theme="dark"] .nota-amber { background:#261700 !important; border-color:#F0883E !important; color:#F0883E !important; }
+
+/* ── Score hero wrap ── */
+[data-theme="dark"] .score-hero-wrap {
+  background:#1C2128 !important;
+  border:1px solid #30363D !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,.4) !important;
+}
+
+/* ── Scrollbar ── */
+[data-theme="dark"] ::-webkit-scrollbar-thumb { background:#30363D !important; }
+[data-theme="dark"] ::-webkit-scrollbar-track { background:#0D1117 !important; }
+
+/* ── Botón filtro mes ── */
+[data-theme="dark"] #btnMesFiltro { background:#1C2128 !important; color:#E6EDF3 !important; border-color:#30363D !important; }
+/* ── Separadores ── */
+[data-theme="dark"] hr { border-color:#30363D !important; }
+[data-theme="dark"] hr[style*="border-color:#333"] { border-color:#30363D !important; }
+/* ── kpi-box dentro de cards oscuras ── */
+[data-theme="dark"] .kpi-box { background:#1C2128 !important; border-color:#30363D !important; }
+/* ── Dropdowns del filtro de mes ── */
+[data-theme="dark"] #ddMesFiltro { background:#1C2128 !important; border-color:#30363D !important; color:#E6EDF3 !important; }
+[data-theme="dark"] #ddMesFiltro button { color:#E6EDF3 !important; }
+[data-theme="dark"] #ddMesFiltro button:hover { background:#21262D !important; }
+/* ── Barras de progreso mini ── */
+[data-theme="dark"] div[style*="background:#F1F5F9"] { background:#30363D !important; }
+[data-theme="dark"] div[style*="background:#eee"] { background:#30363D !important; }
+[data-theme="dark"] div[style*="background:#ddd"] { background:#21262D !important; }
+/* ── Textos color gris oscuro residuales ── */
+[data-theme="dark"] span[style*="color:#555"],
+[data-theme="dark"] span[style*="color:#333"],
+[data-theme="dark"] div[style*="color:#555"],
+[data-theme="dark"] div[style*="color:#333"] { color:#8B949E !important; }
+[data-theme="dark"] div[style*="color:#6B7280"],
+[data-theme="dark"] span[style*="color:#6B7280"] { color:#8B949E !important; }
+[data-theme="dark"] div[style*="color:#9CA3AF"],
+[data-theme="dark"] span[style*="color:#9CA3AF"] { color:#6E7681 !important; }
+/* ── Texto negro en divs de valor ── */
+[data-theme="dark"] div[style*="color:#0D0D0D"],
+[data-theme="dark"] div[style*="color:#1A1A2E"],
+[data-theme="dark"] div[style*="color:#0D0D0D"],
+[data-theme="dark"] span[style*="color:#0D0D0D"],
+[data-theme="dark"] span[style*="color:#1A1A2E"] { color:#E6EDF3 !important; }
+/* ── Transiciones ── */
+*, *::before, *::after { transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease; }
+.card-header, .hdr { transition: none !important; }
+</style>
+</head>
+<body>
+
+<div id="stickyTop">
+<div class="hdr">
+  <div class="hdr-left">
+    <img src="data:image/png;base64,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" alt="CrioCord" style="height:36px;object-fit:contain;display:block;border-radius:6px;padding:3px 6px;background:#fff;flex-shrink:0">
+    <div>
+      <h1>Dashboard de Marketing 2026</h1>
+      <small>Desarrollado por Daniel Walcheff &nbsp;|&nbsp; Actualizado: ___NOW___</small>
+    </div>
+  </div>
+  <div class="hdr-filter" style="position:relative">
+    <label><i class="bi bi-funnel"></i> Período:</label>
+    <button id="btnMesFiltro" onclick="toggleDropdown('ddMesFiltro')" style="background:#fff;border:1px solid #ccc;border-radius:5px;padding:3px 10px;font-size:.76rem;cursor:pointer;min-width:120px;text-align:left;color:#333">
+      <span id="lblMesFiltro">Todos los meses</span> <i class="bi bi-chevron-down" style="float:right;margin-top:1px"></i>
+    </button>
+    <div id="ddMesFiltro" style="display:none;position:absolute;top:110%;right:0;z-index:9999;background:#1a1a1a;border:1px solid #444;border-radius:6px;padding:6px 4px;min-width:140px;box-shadow:0 4px 20px rgba(0,0,0,.5)">
+      <label style="display:block;padding:4px 8px;font-size:.75rem;color:#aaa;cursor:pointer"><input type="checkbox" id="cbMesAll" onchange="toggleAllMeses(this)" style="margin-right:6px" checked> Todos</label>
+      <hr style="border-color:#333;margin:3px 0">
+      <label style="display:block;padding:4px 8px;font-size:.76rem;color:#eee;cursor:pointer"><input type="checkbox" class="cb-mes" value="ENE" onchange="aplicarFiltroGlobal()" checked style="margin-right:6px"> ENE</label>
+      <label style="display:block;padding:4px 8px;font-size:.76rem;color:#eee;cursor:pointer"><input type="checkbox" class="cb-mes" value="FEB" onchange="aplicarFiltroGlobal()" checked style="margin-right:6px"> FEB</label>
+      <label style="display:block;padding:4px 8px;font-size:.76rem;color:#eee;cursor:pointer"><input type="checkbox" class="cb-mes" value="MAR" onchange="aplicarFiltroGlobal()" checked style="margin-right:6px"> MAR</label>
+      <label style="display:block;padding:4px 8px;font-size:.76rem;color:#eee;cursor:pointer"><input type="checkbox" class="cb-mes" value="ABR" onchange="aplicarFiltroGlobal()" checked style="margin-right:6px"> ABR</label>
+      <label style="display:block;padding:4px 8px;font-size:.76rem;color:#eee;cursor:pointer"><input type="checkbox" class="cb-mes" value="MAY" onchange="aplicarFiltroGlobal()" checked style="margin-right:6px"> MAY</label>
+    </div>
+
+  <button id="btnDark" onclick="toggleDark()"
+    title="Cambiar modo claro/oscuro"
+    style="background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);border-radius:20px;
+           padding:5px 13px;color:#fff;cursor:pointer;font-size:.82rem;
+           font-family:Inter,sans-serif;font-weight:500;transition:background 120ms ease;
+           display:flex;align-items:center;gap:6px;white-space:nowrap">
+    <span id="darkIcon">🌙</span>
+    <span id="darkLbl">Modo oscuro</span>
+  </button>
+  </div>
+</div>
+
+<ul class="nav nav-tabs" id="mainTab" role="tablist">
+  <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#kpiscmo"><i class="bi bi-bar-chart-line"></i> KPIs 2026</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#resumen"><i class="bi bi-speedometer2"></i> Resumen</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#vm"><i class="bi bi-people"></i> Captación</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#mkt"><i class="bi bi-graph-up-arrow"></i> Marketing KPIs</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#mix"><i class="bi bi-pie-chart"></i> Mix de Servicios</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#ppto"><i class="bi bi-wallet2"></i> Presupuesto</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#vend"><i class="bi bi-people"></i> Vendedores</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#cron"><i class="bi bi-calendar3"></i> Cronograma</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#proy"><i class="bi bi-kanban"></i> Proyectos</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#glos"><i class="bi bi-book"></i> Glosario</a></li>
+</ul>
+</div><!-- /stickyTop -->
+
+<div class="tab-content" id="mainTabContent">
+
+<!-- ══ KPIs CMO 2026 ══ -->
+<div class="tab-pane fade show active" id="kpiscmo">
+  <div class="sec-header">
+    <h5><i class="bi bi-bar-chart-line" style="color:#2563EB"></i> CMO Scorecard — CrioCord Per\u00fa 2026</h5>
+    <div class="btn-group-top">
+      <a class="btn-fuente" href="___URL_KPIS___" target="_blank"><i class="bi bi-box-arrow-up-right"></i> Fuente KPIs</a>
+      <button class="btn-exp" onclick="exportTab('kpiscmo')"><i class="bi bi-file-earmark-excel"></i> Excel</button>
+    </div>
+  </div>
+  <div id="scHero" class="row g-2 mb-3"></div>
+  <div id="scSections"></div>
+</div>
+
+
+<!-- ══ RESUMEN ══ -->
+<div class="tab-pane fade" id="resumen">
+  <div class="sec-header">
+    <h5>Resumen Ejecutivo 2026</h5>
+    <div class="btn-group-top">
+      <a class="btn-fuente" href="___URL_KPIS___" target="_blank"><i class="bi bi-box-arrow-up-right"></i> KPIs</a>
+      <a class="btn-fuente" href="___URL_PPTO___" target="_blank"><i class="bi bi-box-arrow-up-right"></i> Presupuesto</a>
+      <button class="btn-exp" onclick="exportTab('resumen')"><i class="bi bi-file-earmark-excel"></i> Excel</button>
+    </div>
+  </div>
+  <!-- Fila 1: KPIs de Inversión -->
+  <div class="row g-2 mb-2" id="kpiInv"></div>
+  <!-- Fila 2: KPIs de Desempeño -->
+  <div class="row g-2 mb-3" id="kpiResumen"></div>
+  <!-- Gráfico: comparativo inversión/presupuesto -->
+  <div class="row g-3 mb-3">
+    <div class="col-12"><div class="card">
+      <div class="card-header"><span>Inversión Publicitaria vs Total MKT vs Presupuesto (S/)</span><a class="btn-src" href="___URL_PPTO___" target="_blank"><i class="bi bi-box-arrow-up-right"></i></a></div>
+      <div class="card-body p-2"><div id="chResInvComp" style="height:240px"></div></div>
+    </div></div>
+  </div>
+  <!-- Fila: Online/Offline + ROAS -->
+  <div class="row g-3 mb-3">
+    <div class="col-md-7"><div class="card">
+      <div class="card-header" style="flex-wrap:wrap;gap:4px">
+        <span>Captación Online vs Offline (Unidades)</span>
+        <div style="display:flex;align-items:center;gap:6px">
+          <select id="fResSvc" onchange="buildResumen()" class="svc-select">
+            <option value="">Todos los servicios</option>
+            <option value="ucu">UCU / Cordones</option>
+            <option value="tamizaje">Tamizaje</option>
+            <option value="adn">ADN</option>
+            <option value="myprenatal">My Prenatal</option>
+          <option value="seg_total">Seguridad Total</option>
+          </select>
+          <a class="btn-src" href="___URL_PROSPECCION___" target="_blank"><i class="bi bi-box-arrow-up-right"></i></a>
+        </div>
+      </div>
+      <div class="card-body p-2"><div id="chResOV" style="height:240px"></div></div>
+    </div></div>
+    <div class="col-md-5"><div class="card">
+      <div class="card-header"><span>ROAS Mensual</span><a class="btn-src" href="___URL_KPIS___" target="_blank"><i class="bi bi-box-arrow-up-right"></i></a></div>
+      <div class="card-body p-2"><div id="chResRoas" style="height:240px"></div></div>
+    </div></div>
+  </div>
+  <!-- Tasa de conversión simplificada -->
+  <div class="row g-3 mb-3">
+    <div class="col-12"><div class="card">
+      <div class="card-header"><span>Tasa de Conversión: Prospecto / Lead → Cliente (%)</span><a class="btn-src" href="___URL_KPIS___" target="_blank"><i class="bi bi-box-arrow-up-right"></i></a></div>
+      <div class="card-body p-2"><div id="chResCr" style="height:200px"></div></div>
+    </div></div>
+  </div>
+  <!-- Comparativo anual de unidades por vendedor y servicio -->
+  <div class="row g-3 mb-3">
+    <div class="col-12"><div class="card">
+      <div class="card-header" style="flex-wrap:wrap;gap:8px">
+        <span>Comparativo Anual — Unidades por Vendedor &amp; Servicio</span>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <!-- Multi-select vendedores -->
+          <div style="position:relative">
+            <button class="svc-select" id="btnVendSel" onclick="toggleDropdown('ddVend')" style="cursor:pointer;min-width:160px;text-align:left">
+              <span id="lblVendSel">Todos los asesores</span> <i class="bi bi-chevron-down" style="float:right;margin-top:1px"></i>
+            </button>
+            <div id="ddVend" style="display:none;position:absolute;top:110%;left:0;z-index:200;background:#1a1a1a;border:1px solid #444;border-radius:6px;padding:6px 4px;min-width:190px;max-height:220px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.4)">
+              <label style="display:block;padding:4px 8px;font-size:.75rem;color:#aaa;cursor:pointer"><input type="checkbox" value="__ALL__" onchange="toggleAllVend(this)" style="margin-right:6px" checked> Todos</label>
+              <hr style="border-color:#333;margin:3px 0">
+              <label style="display:block;padding:4px 8px;font-size:.76rem;color:#eee;cursor:pointer"><input type="checkbox" class="cb-vend" value="Lourdes" onchange="buildComparativo()" checked style="margin-right:6px"> Lourdes</label>
+              <label style="display:block;padding:4px 8px;font-size:.76rem;color:#eee;cursor:pointer"><input type="checkbox" class="cb-vend" value="Heinrrich Stechmann" onchange="buildComparativo()" checked style="margin-right:6px"> Heinrrich Stechmann</label>
+              <label style="display:block;padding:4px 8px;font-size:.76rem;color:#eee;cursor:pointer"><input type="checkbox" class="cb-vend" value="Liseth Rondon" onchange="buildComparativo()" checked style="margin-right:6px"> Liseth Rondon</label>
+              <label style="display:block;padding:4px 8px;font-size:.76rem;color:#eee;cursor:pointer"><input type="checkbox" class="cb-vend" value="Carolina Vasques" onchange="buildComparativo()" checked style="margin-right:6px"> Carolina Vasques</label>
+              <label style="display:block;padding:4px 8px;font-size:.76rem;color:#eee;cursor:pointer"><input type="checkbox" class="cb-vend" value="Adler Rosales" onchange="buildComparativo()" checked style="margin-right:6px"> Adler Rosales</label>
+              <label style="display:block;padding:4px 8px;font-size:.76rem;color:#eee;cursor:pointer"><input type="checkbox" class="cb-vend" value="Yvan" onchange="buildComparativo()" checked style="margin-right:6px"> Yvan</label>
+              <label style="display:block;padding:4px 8px;font-size:.76rem;color:#eee;cursor:pointer"><input type="checkbox" class="cb-vend" value="Gerson" onchange="buildComparativo()" checked style="margin-right:6px"> Gerson</label>
+              <label style="display:block;padding:4px 8px;font-size:.76rem;color:#eee;cursor:pointer"><input type="checkbox" class="cb-vend" value="Adriana" onchange="buildComparativo()" checked style="margin-right:6px"> Adriana</label>
+            </div>
+          </div>
+          <!-- Multi-select servicios -->
+          <div style="position:relative">
+            <button class="svc-select" id="btnSvcSel" onclick="toggleDropdown('ddSvc')" style="cursor:pointer;min-width:160px;text-align:left">
+              <span id="lblSvcSel">Todos los servicios</span> <i class="bi bi-chevron-down" style="float:right;margin-top:1px"></i>
+            </button>
+            <div id="ddSvc" style="display:none;position:absolute;top:110%;left:0;z-index:200;background:#1a1a1a;border:1px solid #444;border-radius:6px;padding:6px 4px;min-width:170px;box-shadow:0 4px 16px rgba(0,0,0,.4)">
+              <label style="display:block;padding:4px 8px;font-size:.75rem;color:#aaa;cursor:pointer"><input type="checkbox" value="__ALL__" onchange="toggleAllSvc(this)" style="margin-right:6px" checked> Todos</label>
+              <hr style="border-color:#333;margin:3px 0">
+              <label style="display:block;padding:4px 8px;font-size:.76rem;color:#eee;cursor:pointer"><input type="checkbox" class="cb-svc" value="ucu" onchange="buildComparativo()" checked style="margin-right:6px"> UCU / Cordones</label>
+              <label style="display:block;padding:4px 8px;font-size:.76rem;color:#eee;cursor:pointer"><input type="checkbox" class="cb-svc" value="adn" onchange="buildComparativo()" checked style="margin-right:6px"> ADN</label>
+              <label style="display:block;padding:4px 8px;font-size:.76rem;color:#eee;cursor:pointer"><input type="checkbox" class="cb-svc" value="tamizaje" onchange="buildComparativo()" checked style="margin-right:6px"> Tamizaje</label>
+              <label style="display:block;padding:4px 8px;font-size:.76rem;color:#eee;cursor:pointer"><input type="checkbox" class="cb-svc" value="myprenatal" onchange="buildComparativo()" checked style="margin-right:6px"> My Prenatal</label>
+              <label style="display:block;padding:4px 8px;font-size:.76rem;color:#eee;cursor:pointer"><input type="checkbox" class="cb-svc" value="seg_total" onchange="buildComparativo()" checked style="margin-right:6px"> Seg. Total</label>
+            </div>
+          </div>
+          <!-- Tipo de gráfico -->
+          <select id="fCompTipo" onchange="buildComparativo()" class="svc-select">
+            <option value="line">Línea</option>
+            <option value="bar">Barras</option>
+          </select>
+        </div>
+      </div>
+      <div class="card-body p-2"><div id="chResComp" style="height:300px"></div></div>
+    </div></div>
+  </div>
+
+  <!-- Tabla: captación por representante y servicio -->
+  <div class="row g-3">
+    <div class="col-12"><div class="card">
+      <div class="card-header"><span>Captación por Representante y Servicio (Unidades)</span><a class="btn-src" href="___URL_PROSPECCION___" target="_blank"><i class="bi bi-box-arrow-up-right"></i></a></div>
+      <div class="card-body p-2">
+        <div class="mayo-note" style="margin-bottom:8px"><i class="bi bi-info-circle"></i> <strong>FEB 2026</strong> confirmado. Los demás meses se actualizarán conforme se complete el archivo fuente.</div>
+        <div class="tabla-resp"><table class="dtbl" id="tblCaptRep">
+          <thead><tr><th>Mes</th><th>Representante</th><th>Canal</th><th>UCU/Cordones</th><th>Tamizaje</th><th>ADN</th><th>My Prenatal</th><th>Total</th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+      </div>
+    </div></div>
+  </div>
+</div>
+
+<!-- ══ CAPTACIÓN ══ -->
+<div class="tab-pane fade" id="vm">
+  <div class="sec-header">
+    <h5>Captación — Prospectos &amp; Ventas por Captador</h5>
+    <div class="btn-group-top">
+      <a class="btn-fuente" href="___URL_PROSPECCION___" target="_blank"><i class="bi bi-box-arrow-up-right"></i> Prospección</a>
+      <button class="btn-exp" onclick="exportTab('vm')"><i class="bi bi-file-earmark-excel"></i> Excel</button>
+    </div>
+  </div>
+
+  <!-- ── KPIs globales ── -->
+  <div class="row g-2 mb-2">
+    <div class="col-md col-6"><div class="kpi-box"><div class="val" id="vmTotProsp">—</div><div class="lbl">Prospectos Captados</div><div class="sub">Total leads ingresados</div></div></div>
+    <div class="col-md col-6"><div class="kpi-box"><div class="val" id="vmTotCap">—</div><div class="lbl">Prospectos Exitosos</div><div class="sub">Ventas cerradas acumulado</div></div></div>
+    <div class="col-md col-6"><div class="kpi-box"><div class="val" id="vmTcOnline">—</div><div class="lbl">TC Online (MKT)</div><div class="sub">Prospectos → Venta</div></div></div>
+    <div class="col-md col-6"><div class="kpi-box"><div class="val" id="vmTcOffline">—</div><div class="lbl">TC Offline (VM)</div><div class="sub">Prospectos → Venta</div></div></div>
+    <div class="col-md col-6"><div class="kpi-box"><div class="val" id="vmTcGeneral">—</div><div class="lbl">TC General</div><div class="sub">Total prospectos → Venta</div></div></div>
+  </div>
+  <!-- Unidades vendidas con filtro por servicio -->
+  <div class="row g-2 mb-3">
+    <div class="col-md-6"><div class="kpi-box" style="text-align:left">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+        <div style="font-size:.7rem;font-weight:600;color:var(--texto2);text-transform:uppercase;letter-spacing:.06em">Offline (VM)</div>
+        <select id="fVmUnitOff" onchange="buildVmUnitKpis()" class="svc-select-light" style="min-width:120px">
+          <option value="">Todos los servicios</option>
+          <option value="ucu">UCU / Cordones</option>
+          <option value="tamizaje">Tamizaje</option>
+          <option value="adn">ADN</option>
+          <option value="myprenatal">My Prenatal</option>
+        <option value="seg_total">Seguridad Total</option>
+        </select>
+      </div>
+      <div class="val" id="vmUnitsOffline">—</div>
+      <div class="lbl">Unidades Vendidas — Visitadores Médicos</div>
+    </div></div>
+    <div class="col-md-6"><div class="kpi-box" style="text-align:left">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+        <div style="font-size:.7rem;font-weight:600;color:var(--texto2);text-transform:uppercase;letter-spacing:.06em">Online (MKT)</div>
+        <select id="fVmUnitOn" onchange="buildVmUnitKpis()" class="svc-select-light" style="min-width:120px">
+          <option value="">Todos los servicios</option>
+          <option value="ucu">UCU / Cordones</option>
+          <option value="tamizaje">Tamizaje</option>
+          <option value="adn">ADN</option>
+          <option value="myprenatal">My Prenatal</option>
+        <option value="seg_total">Seguridad Total</option>
+        </select>
+      </div>
+      <div class="val" id="vmUnitsOnline">—</div>
+      <div class="lbl">Unidades Vendidas — Canal Digital</div>
+    </div></div>
+  </div>
+
+  <!-- ══ SECCIÓN 1: PROSPECTOS CAPTADOS ══ -->
+  <div style="font-size:.8rem;font-weight:700;letter-spacing:.08em;color:var(--texto2);margin:8px 0 6px;text-transform:uppercase">1 · Prospectos Captados por Captador</div>
+  <div class="row g-3 mb-3">
+    <div class="col-md-8"><div class="card">
+      <div class="card-header">
+        <span>Prospectos por Mes</span>
+        <div style="display:flex;align-items:center;gap:6px">
+          <select id="fProspSvc" onchange="buildCaptProsp()" class="svc-select">
+            <option value="">Prospectos totales</option>
+          <option value="ucu">UCU / Cordones</option>
+          <option value="tamizaje">Tamizaje</option>
+          <option value="adn">ADN</option>
+          <option value="myprenatal">My Prenatal</option>
+          <option value="seg_total">Seguridad Total</option>
+          </select>
+          <a class="btn-src" href="___URL_PROSPECCION___" target="_blank"><i class="bi bi-box-arrow-up-right"></i></a>
+        </div>
+      </div>
+      <div class="card-body p-2"><div id="chVmProspMes" style="height:260px"></div></div>
+    </div></div>
+    <div class="col-md-4"><div class="card">
+      <div class="card-header">
+        <span>Mix Prospectos (acumulado)</span>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:.67rem;color:#aaa;font-style:italic">sigue filtro de servicio ↑</span>
+          <a class="btn-src" href="___URL_PROSPECCION___" target="_blank"><i class="bi bi-box-arrow-up-right"></i></a>
+        </div>
+      </div>
+      <div class="card-body p-2"><div id="chVmProspPie" style="height:260px"></div></div>
+    </div></div>
+  </div>
+
+  <!-- ══ SECCIÓN 2: VENTAS CAPTADAS (PROSPECTOS EXITOSOS) ══ -->
+  <div style="font-size:.8rem;font-weight:700;letter-spacing:.08em;color:var(--texto2);margin:8px 0 6px;text-transform:uppercase">2 · Ventas Captadas (Prospectos Exitosos) por Captador</div>
+  <!-- Tarjetas individuales por captador -->
+  <div class="row g-2 mb-3" id="captCards"></div>
+  <!-- Gráfico prospectos exitosos por captador y servicio -->
+  <div class="row g-3 mb-3">
+    <div class="col-md-8"><div class="card">
+      <div class="card-header">
+        <span>Prospectos Exitosos por Captador / Mes</span>
+        <div style="display:flex;align-items:center;gap:6px">
+          <select id="fVmCap" onchange="buildVM()" class="svc-select">
+            <option value="">Todos los captadores</option>
+            <option value="MKT CrioCord">MKT CrioCord</option>
+            <option value="Milagros H">Milagros H</option>
+            <option value="Milagritos">Milagritos</option>
+            <option value="Marylin">Marylin</option>
+            <option value="Velia">Velia</option>
+          </select>
+          <select id="fVmSvc" onchange="buildVM()" class="svc-select">
+            <option value="">Todos los servicios</option>
+            <option value="ucu">UCU / Cordones</option>
+            <option value="tamizaje">Tamizaje</option>
+            <option value="adn">ADN</option>
+            <option value="myprenatal">My Prenatal</option>
+          <option value="seg_total">Seguridad Total</option>
+          </select>
+          <a class="btn-src" href="___URL_PROSPECCION___" target="_blank"><i class="bi bi-box-arrow-up-right"></i></a>
+        </div>
+      </div>
+      <div class="card-body p-2"><div id="chVmCap" style="height:270px"></div></div>
+    </div></div>
+    <div class="col-md-4"><div class="card">
+      <div class="card-header"><span>Distribución Prospectos Exitosos</span></div>
+      <div class="card-body p-2"><div id="chVmExitPie" style="height:270px"></div></div>
+    </div></div>
+  </div>
+
+  <!-- ══ SECCIÓN 3: TASA DE CIERRE ══ -->
+  <div style="font-size:.8rem;font-weight:700;letter-spacing:.08em;color:var(--texto2);margin:8px 0 6px;text-transform:uppercase">3 · Tasa de Cierre Online vs Offline</div>
+  <div class="row g-3 mb-3">
+    <div class="col-md-6"><div class="card">
+      <div class="card-header">
+        <span>TC Online — MKT CrioCord (%)</span>
+        <select id="fTcOnSvc" onchange="buildCaptProsp()" class="svc-select">
+          <option value="">Total (todos)</option>
+          <option value="ucu">UCU / Cordones</option>
+          <option value="tamizaje">Tamizaje</option>
+          <option value="adn">ADN</option>
+          <option value="myprenatal">My Prenatal</option>
+        <option value="seg_total">Seguridad Total</option>
+        </select>
+        <a class="btn-src" href="___URL_PROSPECCION___" target="_blank"><i class="bi bi-box-arrow-up-right"></i></a>
+      </div>
+      <div class="card-body p-2"><div id="chTcOnline" style="height:220px"></div></div>
+    </div></div>
+    <div class="col-md-6"><div class="card">
+      <div class="card-header">
+        <span>TC Offline — VM Lima &amp; Arequipa (%)</span>
+        <select id="fTcOffSvc" onchange="buildCaptProsp()" class="svc-select">
+          <option value="">Total (todos)</option>
+          <option value="ucu">UCU / Cordones</option>
+          <option value="tamizaje">Tamizaje</option>
+          <option value="adn">ADN</option>
+          <option value="myprenatal">My Prenatal</option>
+        <option value="seg_total">Seguridad Total</option>
+        </select>
+        <a class="btn-src" href="___URL_PROSPECCION___" target="_blank"><i class="bi bi-box-arrow-up-right"></i></a>
+      </div>
+      <div class="card-body p-2"><div id="chTcOffline" style="height:220px"></div></div>
+    </div></div>
+  </div>
+
+  <!-- ══ SECCIÓN 4: DETALLE VM ══ -->
+  <div style="font-size:.8rem;font-weight:700;letter-spacing:.08em;color:var(--texto2);margin:8px 0 6px;text-transform:uppercase">4 · Actividad Visitadores Médicos</div>
+  <div class="row g-2 mb-3">
+    <div class="col-md-3 col-6"><div class="kpi-box"><div class="val" id="vmTotVis">—</div><div class="lbl">Visitas VM Totales</div><div class="sub">Contactos de campo</div></div></div>
+    <div class="col-md-3 col-6"><div class="kpi-box"><div class="val" id="vmTotClin">—</div><div class="lbl">Clínicas Cubiertas</div><div class="sub">Por visitadores</div></div></div>
+    <div class="col-md-3 col-6"><div class="kpi-box"><div class="val" id="vmTotPot">—</div><div class="lbl">Captación VM Offline</div><div class="sub">Unidades por visitadores</div></div></div>
+    <div class="col-md-3 col-6"><div class="kpi-box"><div class="val" id="vmMktCap">—</div><div class="lbl">Captación MKT Online</div><div class="sub">Unidades canal digital</div></div></div>
+  </div>
+  <!-- Detalle VM: visitas por rep -->
+  <div class="row g-3 mb-3">
+    <div class="col-12"><div class="card">
+      <div class="card-header">
+        <span>Visitas VM por Representante / Mes</span>
+        <div style="display:flex;align-items:center;gap:6px">
+          <select id="fVmExec" onchange="buildVM()" class="svc-select" style="min-width:150px">
+            <option value="">Todas</option>
+            <option>Milagros</option><option>Milagritos</option><option>Marylin</option>
+            <option>Velia</option><option>Adler</option><option>Alejandra</option>
+          </select>
+          <a class="btn-src" href="___URL_PROSPECCION___" target="_blank"><i class="bi bi-box-arrow-up-right"></i></a>
+        </div>
+      </div>
+      <div class="card-body p-2"><div id="chVmRep" style="height:220px"></div></div>
+    </div></div>
+  </div>
+  <!-- Categoría y distribución captación -->
+  <div class="row g-3 mb-3">
+    <div class="col-md-6"><div class="card">
+      <div class="card-header">
+        <span>Visitas por Categoría</span>
+        <div style="display:flex;align-items:center;gap:6px">
+          <select id="fVmCatRep" onchange="buildVM()" class="svc-select" style="min-width:140px">
+            <option value="">Todos los reps</option>
+            <option>Milagros</option><option>Milagritos</option><option>Marylin</option>
+            <option>Velia</option><option>Adler</option><option>Alejandra</option>
+          </select>
+          <a class="btn-src" href="___URL_PROSPECCION___" target="_blank"><i class="bi bi-box-arrow-up-right"></i></a>
+        </div>
+      </div>
+      <div class="card-body p-2"><div id="chVmCat" style="height:250px"></div></div>
+    </div></div>
+    <div class="col-md-6"><div class="card">
+      <div class="card-header">
+        <span>Distribución Captación</span>
+        <div style="display:flex;align-items:center;gap:6px">
+          <select id="fVmCapRep" onchange="buildVM()" class="svc-select" style="min-width:150px">
+            <option value="">Todos los captadores</option>
+            <option value="MKT CrioCord">MKT CrioCord</option>
+            <option value="Milagros H">Milagros H</option>
+            <option value="Milagritos">Milagritos</option><option value="Marylin">Marylin</option>
+            <option value="Velia">Velia</option><option value="Adler">Adler</option>
+            <option value="Alejandra">Alejandra</option>
+          </select>
+          <a class="btn-src" href="___URL_PROSPECCION___" target="_blank"><i class="bi bi-box-arrow-up-right"></i></a>
+        </div>
+      </div>
+      <div class="card-body p-2"><div id="chVmCapPie" style="height:250px"></div></div>
+    </div></div>
+  </div>
+  <div class="row g-3 mb-3">
+    <div class="col-12"><div class="card"><div class="card-header"><span>Cobertura por Clínica (VM)</span><a class="btn-src" href="___URL_PROSPECCION___" target="_blank"><i class="bi bi-box-arrow-up-right"></i></a></div><div class="card-body p-2"><div id="chVmClin" style="height:240px"></div></div></div></div>
+  </div>
+
+
+  <!-- Prospectos y tasa de cierre -->
+  <div class="row g-3 mt-1 mb-3">
+    <div class="col-md-8"><div class="card">
+      <div class="card-header"><span>Prospectos vs Captaciones por Captador</span><a class="btn-src" href="___URL_PROSPECCION___" target="_blank"><i class="bi bi-box-arrow-up-right"></i></a></div>
+      <div class="card-body p-2"><div id="chVmProsp" style="height:260px"></div></div>
+    </div></div>
+    <div class="col-md-4"><div class="card">
+      <div class="card-header"><span>Tasa de Cierre por Captador</span>
+        <div style="display:flex;align-items:center;gap:6px">
+          <select id="fTasaSvc" onchange="buildVM()" class="svc-select">
+            <option value="">Todos los servicios</option>
+            <option value="ucu">UCU / Cordones</option>
+            <option value="tamizaje">Tamizaje</option>
+            <option value="adn">ADN</option>
+            <option value="myprenatal">My Prenatal</option>
+            <option value="seg_total">Seguridad Total</option>
+          </select>
+          <a class="btn-src" href="___URL_PROSPECCION___" target="_blank"><i class="bi bi-box-arrow-up-right"></i></a>
+        </div>
+      </div>
+      <div class="card-body p-2" id="vmTasaCards" style="padding:12px !important"></div>
+    </div></div>
+  </div>
+
+
+  <div class="tabla-resp" style="margin-top:12px"><table class="dtbl" id="tblVm">
+    <thead><tr><th>Mes</th><th>Captador</th><th>Canal</th><th>UCU</th><th>Tamizaje</th><th>ADN</th><th>My Prenatal</th><th>Total</th></tr></thead>
+    <tbody></tbody>
+  </table></div>
+  <div class="tabla-resp" style="margin-top:8px"><table class="dtbl" id="tblProsp">
+    <thead><tr><th>Mes</th><th>Captador</th><th>Canal</th><th>Leads</th><th>Captaciones</th><th>Tasa Cierre</th></tr></thead>
+    <tbody></tbody>
+  </table></div>
+</div>
+
+<!-- ══ MARKETING KPIS ══ -->
+<div class="tab-pane fade" id="mkt">
+  <div class="sec-header">
+    <h5>Marketing KPIs — Framework CONQUER</h5>
+    <div class="btn-group-top">
+      <a class="btn-fuente" href="___URL_KPIS___" target="_blank"><i class="bi bi-box-arrow-up-right"></i> KPIs</a>
+      <button class="btn-exp" onclick="exportTab('mkt')"><i class="bi bi-file-earmark-excel"></i> Excel</button>
+    </div>
+  </div>
+  <div class="mayo-note"><i class="bi bi-info-circle"></i> <strong>Desde mayo 2026:</strong> La métrica "Prospecto Válido" se unifica con Lead — solo se mide Lead → Cliente (CR3).</div>
+  <!-- Filtro por servicio — solo visible cuando hay datos por servicio en CAPT_REP -->
+  <div class="filter-bar" id="mktSvcBar">
+    <label><i class="bi bi-grid-3x3-gap"></i> Filtrar captación por servicio:</label>
+    <select id="fMktSvc" onchange="buildMkt()" class="form-select form-select-sm" style="width:160px">
+      <option value="">Todos los servicios</option>
+      <option value="ucu">UCU / Cordones</option>
+      <option value="tamizaje">Tamizaje</option>
+      <option value="adn">ADN</option>
+      <option value="myprenatal">My Prenatal</option>
+    </select>
+    <span style="font-size:.72rem;color:#888"><i class="bi bi-info-circle"></i> Filtra la sección de captaciones. KPIs generales no cambian.</span>
+  </div>
+  <div class="row g-2 mb-3">
+    <div class="col-md-3 col-6"><div class="kpi-box"><div class="val" id="mktLeads">—</div><div class="lbl">Total Leads</div></div></div>
+    <div class="col-md-3 col-6"><div class="kpi-box"><div class="val" id="mktClientes">—</div><div class="lbl">Total Clientes</div></div></div>
+    <div class="col-md-3 col-6"><div class="kpi-box"><div class="val" id="mktCpl">—</div><div class="lbl">CPL Promedio</div><div class="sub">Costo/Lead</div></div></div>
+    <div class="col-md-3 col-6"><div class="kpi-box"><div class="val" id="mktCpa">—</div><div class="lbl">CPA Promedio</div><div class="sub">Costo/Cliente</div></div></div>
+    <div class="col-md-3 col-6"><div class="kpi-box"><div class="val" id="mktRoas">—</div><div class="lbl">ROAS Promedio</div><div class="sub">Ret. Inv. Pub.</div></div></div>
+    <div class="col-md-3 col-6"><div class="kpi-box"><div class="val" id="mktRoi">—</div><div class="lbl">ROI Acumulado</div><div class="sub">Retorno Total</div></div></div>
+    <div class="col-md-3 col-6"><div class="kpi-box"><div class="val" id="mktCac">—</div><div class="lbl">CAC Promedio</div><div class="sub">Costo Adquis.</div></div></div>
+    <div class="col-md-3 col-6"><div class="kpi-box"><div class="val" id="mktCr3">—</div><div class="lbl">CR Lead→Cliente</div><div class="sub">Conversión Global</div></div></div>
+  </div>
+  <div class="row g-3 mb-3">
+    <div class="col-md-6"><div class="card"><div class="card-header"><span>CPL &amp; CPA por Mes (S/)</span><a class="btn-src" href="___URL_KPIS___" target="_blank"><i class="bi bi-box-arrow-up-right"></i></a></div><div class="card-body p-2"><div id="chMktCpl" style="height:230px"></div></div></div></div>
+    <div class="col-md-6"><div class="card"><div class="card-header"><span>ROAS &amp; ROI% Mensual</span><a class="btn-src" href="___URL_KPIS___" target="_blank"><i class="bi bi-box-arrow-up-right"></i></a></div><div class="card-body p-2"><div id="chMktRoas" style="height:230px"></div></div></div></div>
+    <div class="col-md-5"><div class="card"><div class="card-header"><span>Embudo de Conversión (promedio)</span><a class="btn-src" href="___URL_KPIS___" target="_blank"><i class="bi bi-box-arrow-up-right"></i></a></div><div class="card-body p-2"><div id="chMktFunnel" style="height:230px"></div></div></div></div>
+    <div class="col-md-7"><div class="card"><div class="card-header"><span>Tasas de Conversión CR1 / CR2 / CR3 (%)</span><a class="btn-src" href="___URL_KPIS___" target="_blank"><i class="bi bi-box-arrow-up-right"></i></a></div><div class="card-body p-2"><div id="chMktCr" style="height:230px"></div></div></div></div>
+  </div>
+  <div class="row g-3 mb-3">
+    <div class="col-12"><div class="card"><div class="card-header"><span>Inversión vs Ventas Mensual (S/)</span><a class="btn-src" href="___URL_KPIS___" target="_blank"><i class="bi bi-box-arrow-up-right"></i></a></div><div class="card-body p-2"><div id="chMktInvVen" style="height:220px"></div></div></div></div>
+  </div>
+  <!-- Captaciones por servicio (desde CAPT_REP) con filtro de servicio -->
+  <div class="row g-3 mb-3" id="mktCaptSvcRow">
+    <div class="col-md-7"><div class="card">
+      <div class="card-header">
+        <span>Captaciones por Servicio / Mes (Unidades)</span>
+        <select id="fMktSvcH" onchange="syncSvcFilter()" class="svc-select" style="margin-left:8px">
+          <option value="">Todos</option>
+          <option value="ucu">UCU</option><option value="tamizaje">Tamizaje</option>
+          <option value="adn">ADN</option><option value="myprenatal">My Prenatal</option>
+        <option value="seg_total">Seguridad Total</option>
+        </select>
+        <a class="btn-src" href="___URL_PROSPECCION___" target="_blank"><i class="bi bi-box-arrow-up-right"></i></a>
+      </div>
+      <div class="card-body p-2"><div id="chMktCaptSvc" style="height:230px"></div></div>
+    </div></div>
+    <div class="col-md-5"><div class="card">
+      <div class="card-header"><span>Distribución Captación por Servicio</span><div style="display:flex;align-items:center;gap:6px"><select id="fVmCapSvcDist" onchange="buildVM()" class="svc-select"><option value="">Todos los servicios</option>
+            <option value="ucu">UCU / Cordones</option>
+            <option value="tamizaje">Tamizaje</option>
+            <option value="adn">ADN</option>
+            <option value="myprenatal">My Prenatal</option><option value="seg_total">Seguridad Total</option></select><a class="btn-src" href="___URL_PROSPECCION___" target="_blank"><i class="bi bi-box-arrow-up-right"></i></a></div></div>
+      <div class="card-body p-2"><div id="chMktCaptPie" style="height:230px"></div></div>
+    </div></div>
+  </div>
+
+
+  <div class="tabla-resp" style="margin-top:12px"><table class="dtbl" id="tblMkt">
+    <thead><tr><th>Mes</th><th>Leads</th><th>Prosp.*</th><th>Clientes</th><th>Inversión</th><th>Ventas</th><th>CPL</th><th>CPA</th><th>ROAS</th><th>ROI%</th><th>CAC</th><th>CR1%*</th><th>CR2%*</th><th>CR3%</th></tr></thead>
+    <tbody></tbody>
+  </table><div style="font-size:.7rem;color:#888;margin-top:4px">* Solo ENE–ABR. Desde mayo: Prospecto = Lead.</div></div>
+</div>
+
+<!-- ══ MIX ══ -->
+<div class="tab-pane fade" id="mix">
+  <div class="sec-header">
+    <h5>Mix de Servicios CrioCord</h5>
+    <div class="btn-group-top">
+      <a class="btn-fuente" href="___URL_KPIS___" target="_blank"><i class="bi bi-box-arrow-up-right"></i> KPIs</a>
+      <button class="btn-exp" onclick="exportTab('mix')"><i class="bi bi-file-earmark-excel"></i> Excel</button>
+    </div>
+  </div>
+  <div class="row g-3">
+    <div class="col-md-5"><div class="card"><div class="card-header"><span>Distribución por Servicio (Unidades)</span><div style="display:flex;align-items:center;gap:6px"><select id="fMixBarSvc" onchange="buildMix()" class="svc-select"><option value="">Todos los servicios</option>
+            <option value="ucu">UCU / Cordones</option>
+            <option value="tamizaje">Tamizaje</option>
+            <option value="adn">ADN</option>
+            <option value="myprenatal">My Prenatal</option><option value="seg_total">Seguridad Total</option></select><a class="btn-src" href="___URL_KPIS___" target="_blank"><i class="bi bi-box-arrow-up-right"></i></a></div></div><div class="card-body p-2"><div id="chMixPie" style="height:280px"></div></div></div></div>
+    <div class="col-md-7"><div class="card"><div class="card-header"><span>Unidades por Servicio / Mes</span><a class="btn-src" href="___URL_KPIS___" target="_blank"><i class="bi bi-box-arrow-up-right"></i></a></div><div class="card-body p-2"><div id="chMixBar" style="height:280px"></div></div></div></div>
+    <div class="col-12"><div class="card"><div class="card-header"><span>Captación Online vs Offline por Mes (Unidades)</span><div style="display:flex;align-items:center;gap:6px"><select id="fMixOvSvc" onchange="buildMix()" class="svc-select"><option value="">Todos los servicios</option>
+            <option value="ucu">UCU / Cordones</option>
+            <option value="tamizaje">Tamizaje</option>
+            <option value="adn">ADN</option>
+            <option value="myprenatal">My Prenatal</option><option value="seg_total">Seguridad Total</option></select><a class="btn-src" href="___URL_KPIS___" target="_blank"><i class="bi bi-box-arrow-up-right"></i></a></div></div><div class="card-body p-2"><div id="chMixOV" style="height:220px"></div></div></div></div>
+  </div>
+  <div class="mt-3 tabla-resp"><table class="dtbl" id="tblMix"><thead><tr><th>Mes</th><th>UCU</th><th>ADN</th><th>Tamizaje</th><th>MyPrenatal</th><th>Seg. Total</th><th>Total</th></tr></thead><tbody></tbody></table></div>
+</div>
+
+<!-- ══ PRESUPUESTO ══ -->
+<div class="tab-pane fade" id="ppto">
+  <div class="sec-header">
+    <h5>Presupuesto Marketing 2026</h5>
+    <div class="btn-group-top">
+      <a class="btn-fuente" href="___URL_PPTO___" target="_blank"><i class="bi bi-box-arrow-up-right"></i> Presupuesto</a>
+      <button class="btn-exp" onclick="exportTab('ppto')"><i class="bi bi-file-earmark-excel"></i> Excel</button>
+    </div>
+  </div>
+  <div class="row g-3 mb-3">
+    <div class="col-md-3"><div class="kpi-box"><div class="val" id="ppTotPlan">—</div><div class="lbl">Presupuesto Planificado</div></div></div>
+    <div class="col-md-3"><div class="kpi-box"><div class="val" id="ppTotPromo">—</div><div class="lbl">Gasto Promocional</div></div></div>
+    <div class="col-md-3"><div class="kpi-box"><div class="val" id="ppTotGasto">—</div><div class="lbl">Gasto Total Ejecutado</div></div></div>
+    <div class="col-md-3"><div class="kpi-box"><div class="val" id="ppCumpl">—</div><div class="lbl">% Cumplimiento</div></div></div>
+  </div>
+  <div class="row g-3 mb-3">
+    <div class="col-12"><div class="card"><div class="card-header"><span>Presupuesto Total por Mes vs Gasto Ejecutado (S/)</span><a class="btn-src" href="___URL_PPTO___" target="_blank"><i class="bi bi-box-arrow-up-right"></i></a></div><div class="card-body p-2"><div id="chPpComp" style="height:240px"></div></div></div></div>
+    <div class="col-md-6"><div class="card"><div class="card-header"><span>% Cumplimiento por Mes</span><a class="btn-src" href="___URL_PPTO___" target="_blank"><i class="bi bi-box-arrow-up-right"></i></a></div><div class="card-body p-2"><div id="chPpCumpl" style="height:220px"></div></div></div></div>
+    <div class="col-md-6"><div class="card"><div class="card-header"><span>Gasto por Categoría (Acum.)</span><a class="btn-src" href="___URL_PPTO___" target="_blank"><i class="bi bi-box-arrow-up-right"></i></a></div><div class="card-body p-2"><div id="chPpCat" style="height:220px"></div></div></div></div>
+  </div>
+  <div class="row g-3 mb-3">
+    <div class="col-12"><div class="card"><div class="card-header"><span>Gastos Previstos Próximo Mes</span></div><div class="card-body p-2" id="ppPrevistoDiv"></div></div></div>
+  </div>
+  <div class="card mb-3"><div class="card-header"><span>Historial de Gastos</span></div>
+    <div class="card-body p-2 tabla-resp">
+      <div class="filter-bar mb-2">
+        <label>Mes:</label>
+        <select id="fHistMes" class="form-select form-select-sm" style="width:110px" onchange="renderHist()">
+          <option value="">Todos</option><option>ENE</option><option>FEB</option><option>MAR</option><option>ABR</option><option>MAY</option>
+        </select>
+        <label>Cat.:</label>
+        <select id="fHistCat" class="form-select form-select-sm" style="width:140px" onchange="renderHist()">
+          <option value="">Todas</option><option>Digital</option><option>Eventos</option><option>Administrativo</option>
+        </select>
+      </div>
+
+      <table class="dtbl" id="tblHist"><thead><tr><th>Fecha</th><th>Mes</th><th>Categoría</th><th>Descripción</th><th>Monto (S/)</th></tr></thead><tbody></tbody></table>
+      <div id="totalHist" style="text-align:right;font-weight:700;font-size:.85rem;margin-top:5px;color:var(--azul)"></div>
+    </div>
+  </div>
+
+
+  <div class="tabla-resp" style="margin-top:12px"><table class="dtbl" id="tblPpto"><thead><tr><th>Mes</th><th>Planificado</th><th>Gasto Promo</th><th>Gasto Total</th><th>% Cumpl.</th></tr></thead><tbody></tbody></table></div>
+</div>
+
+<!-- ══ VENDEDORES ══ -->
+<div class="tab-pane fade" id="vend">
+  <div class="sec-header">
+    <h5>Vendedores — Equipo Comercial CrioCord</h5>
+    <div class="btn-group-top">
+      <a class="btn-fuente" href="___URL_VEND___" target="_blank"><i class="bi bi-box-arrow-up-right"></i> Plan Canva</a>
+      <a class="btn-fuente" href="___URL_PROSPECCION___" target="_blank" style="background:var(--azul2)"><i class="bi bi-box-arrow-up-right"></i> Prospección</a>
+      <button class="btn-exp" onclick="exportTab('vend')"><i class="bi bi-file-earmark-excel"></i> Excel</button>
+    </div>
+  </div>
+  <div class="filter-bar">
+    <label><i class="bi bi-person-badge"></i> Asesor:</label>
+    <select id="fVendExec" onchange="buildVend()">
+      <option value="">Todos</option>
+      <option>Liseth Rondon</option><option>Adler Rosales</option>
+      <option>Heinrrich Stechmann</option><option>Carolina Vasques</option>
+      <option>Lourdes</option><option>Yvan</option>
+      <option>Gerson</option><option>Adriana</option>
+    </select>
+    <span style="font-size:.73rem;color:#888;margin-left:4px"><i class="bi bi-info-circle"></i> Metas Q2: Lima UCU≥30 | Prov UCU≥10</span>
+  </div>
+  <div class="row g-3 mb-3" id="kpiVend"></div>
+  <div class="row g-3 mb-3">
+    <div class="col-md-6"><div class="card"><div class="card-header"><span>Unidades por Servicio / Asesor</span><div style="display:flex;align-items:center;gap:6px"><select id="fVendUcuSvc" onchange="buildVend()" class="svc-select"><option value="">Todos los servicios</option>
+            <option value="ucu">UCU / Cordones</option>
+            <option value="tamizaje">Tamizaje</option>
+            <option value="adn">ADN</option>
+            <option value="myprenatal">My Prenatal</option><option value="seg_total">Seguridad Total</option></select><a class="btn-src" href="___URL_PROSPECCION___" target="_blank"><i class="bi bi-box-arrow-up-right"></i></a></div></div><div class="card-body p-2"><div id="chVendUcu" style="height:250px"></div></div></div></div>
+    <div class="col-md-6"><div class="card"><div class="card-header"><span>Servicios Acumulados por Asesor</span><div style="display:flex;align-items:center;gap:6px"><select id="fVendServSvc" onchange="buildVend()" class="svc-select"><option value="">Todos los servicios</option>
+            <option value="ucu">UCU / Cordones</option>
+            <option value="tamizaje">Tamizaje</option>
+            <option value="adn">ADN</option>
+            <option value="myprenatal">My Prenatal</option><option value="seg_total">Seguridad Total</option></select><a class="btn-src" href="___URL_PROSPECCION___" target="_blank"><i class="bi bi-box-arrow-up-right"></i></a></div></div><div class="card-body p-2"><div id="chVendServ" style="height:250px"></div></div></div></div>
+    <div class="col-md-6"><div class="card"><div class="card-header"><span>Leads por Asesor / Mes</span><div style="display:flex;align-items:center;gap:6px"><select id="fVendLeadsSvc" onchange="buildVend()" class="svc-select"><option value="">Todos los servicios</option>
+            <option value="ucu">UCU / Cordones</option>
+            <option value="tamizaje">Tamizaje</option>
+            <option value="adn">ADN</option>
+            <option value="myprenatal">My Prenatal</option><option value="seg_total">Seguridad Total</option></select><a class="btn-src" href="___URL_PROSPECCION___" target="_blank"><i class="bi bi-box-arrow-up-right"></i></a></div></div><div class="card-body p-2"><div id="chVendProd" style="height:250px"></div></div></div></div>
+    <div class="col-md-6"><div class="card"><div class="card-header"><span>Cumplimiento UCU vs Meta Q2 (%)</span><a class="btn-src" href="___URL_PROSPECCION___" target="_blank"><i class="bi bi-box-arrow-up-right"></i></a></div><div class="card-body p-2"><div id="chVendObj" style="height:250px"></div></div></div></div>
+  </div>
+
+  <div style="font-size:.7rem;color:#888;margin-top:3px">* Válidos solo ENE–ABR. Desde mayo: solo Leads.</div></div>
+
+
+  <div class="tabla-resp mb-3" style="margin-top:12px"><table class="dtbl" id="tblVend"><thead><tr><th>Mes</th><th>Asesor</th><th>Zona</th><th>UCU</th><th>ADN</th><th>Tamizaje</th><th>MyPrenatal</th><th>Seg.Total</th><th>Leads</th><th>Válidos*</th></tr></thead><tbody></tbody></table></div>
+</div>
+
+<!-- ══ CRONOGRAMA ══ -->
+<div class="tab-pane fade" id="cron">
+  <div class="sec-header">
+    <h5>Cronograma de Comunicaciones &amp; Actividades 2026</h5>
+    <div class="btn-group-top">
+      <a class="btn-fuente" href="___URL_CRONOGRAMA___" target="_blank"><i class="bi bi-box-arrow-up-right"></i> Cronograma</a>
+      <button class="btn-exp" onclick="exportTab('cron')"><i class="bi bi-file-earmark-excel"></i> Excel</button>
+    </div>
+  </div>
+  <ul class="nav nav-pills mb-3" id="cronPills">
+    <li class="nav-item"><a class="nav-link active" data-bs-toggle="pill" href="#cronComms">Comunicaciones</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="pill" href="#cronAct">Actividades Anuales</a></li>
+  </ul>
+  <div class="tab-content">
+    <div class="tab-pane fade show active" id="cronComms">
+      <div class="filter-bar mb-2">
+        <label>Mes:</label>
+        <select id="fCronMes" class="form-select form-select-sm" style="width:110px" onchange="renderCron()">
+          <option value="">Todos</option><option>ENE</option><option>FEB</option><option>MAR</option><option>ABR</option><option>MAY</option><option>JUN</option>
+        </select>
+        <label>Canal:</label>
+        <select id="fCronCanal" class="form-select form-select-sm" style="width:110px" onchange="renderCron()">
+          <option value="">Todos</option><option>WATI</option><option>MAIL</option><option>EVENTO</option><option>BOLETÍN</option><option>PROMO</option>
+        </select>
+        <span style="font-size:.73rem;background:#d4edda;padding:2px 8px;border-radius:4px">● Hecho</span>
+        <span style="font-size:.73rem;background:#f8f9fa;border:1px solid #ccc;padding:2px 8px;border-radius:4px">○ Pendiente</span>
+      </div>
+      
+    </div>
+    <div class="tab-pane fade" id="cronAct">
+      
+    </div>
+  </div>
+
+  <div class="tabla-resp"><table class="dtbl" id="tblCronComms">
+    <thead><tr><th>Fecha</th><th>Mes</th><th>Canal</th><th>Audiencia</th><th>Tipo</th><th>Tema / Campaña</th></tr></thead>
+    <tbody></tbody>
+  </table></div>
+  <div class="tabla-resp" style="margin-top:8px"><table class="dtbl" id="tblCronAct">
+    <thead><tr><th>Fecha</th><th>Mes</th><th>Tipo</th><th>Título</th><th>Responsable</th><th>Estado</th></tr></thead>
+    <tbody></tbody>
+  </table></div>
+</div>
+
+<!-- ══ PROYECTOS ══ -->
+<div class="tab-pane fade" id="proy">
+  <div class="sec-header">
+    <h5>Gestor de Proyectos Marketing</h5>
+    <div class="btn-group-top">
+      <a class="btn-fuente" href="___URL_PLAN___" target="_blank"><i class="bi bi-box-arrow-up-right"></i> Plan Canva</a>
+      <button class="btn-exp" onclick="exportTab('proy')"><i class="bi bi-file-earmark-excel"></i> Excel</button>
+    </div>
+  </div>
+  <div class="card mb-3"><div class="card-header"><span><i class="bi bi-plus-circle"></i> Nuevo Proyecto / Tarea</span></div>
+    <div class="card-body" id="proyForm">
+      <div class="row g-2">
+        <div class="col-md-3"><label>Nombre</label><input type="text" id="pNom" class="form-control form-control-sm"></div>
+        <div class="col-md-2"><label>Responsable</label><input type="text" id="pResp" value="Daniel Walcheff" class="form-control form-control-sm"></div>
+        <div class="col-md-2"><label>Inicio</label><input type="date" id="pIni" class="form-control form-control-sm"></div>
+        <div class="col-md-2"><label>Fin</label><input type="date" id="pFin" class="form-control form-control-sm"></div>
+        <div class="col-md-2"><label>Estado</label><select id="pEst" class="form-select form-select-sm"><option value="PENDIENTE">Pendiente</option><option value="EN_PROGRESO">En Progreso</option><option value="FINALIZADO">Finalizado</option><option value="DETENIDO">Detenido</option></select></div>
+        <div class="col-md-1 d-flex align-items-end"><button class="btn-guardar w-100" onclick="agregarProy()"><i class="bi bi-plus"></i></button></div>
+        <div class="col-12"><label>Notas</label><textarea id="pNot" rows="2" class="form-control form-control-sm"></textarea></div>
+      </div>
+    </div>
+  </div>
+  <div class="d-flex gap-2 mb-2 align-items-center">
+    <label style="font-size:.78rem;font-weight:600;color:var(--azul)">Filtrar:</label>
+    <select id="fProyEst" class="form-select form-select-sm" style="width:150px" onchange="renderProy()">
+      <option value="">Todos</option><option value="PENDIENTE">Pendiente</option><option value="EN_PROGRESO">En Progreso</option><option value="FINALIZADO">Finalizado</option><option value="DETENIDO">Detenido</option>
+    </select>
+    <button class="btn-guardar ms-auto" onclick="guardarProy()"><i class="bi bi-floppy"></i> Guardar</button>
+  </div>
+
+
+  <div class="tabla-resp" style="margin-top:12px"><table class="dtbl" id="tblProy"><thead><tr><th>ID</th><th>Proyecto / Tarea</th><th>Resp.</th><th>Inicio</th><th>Fin</th><th>Estado</th><th>Notas</th><th></th></tr></thead><tbody></tbody></table></div>
+</div>
+
+<!-- ══ GLOSARIO ══ -->
+<div class="tab-pane fade" id="glos">
+  <div class="sec-header"><h5>Glosario de KPIs &amp; Fórmulas CONQUER</h5><button class="btn-exp" onclick="exportTab('glos')"><i class="bi bi-file-earmark-excel"></i> Excel</button></div>
+  <div class="row g-3">
+    <div class="col-md-6"><div class="card"><div class="card-header"><span>Fórmulas del Framework CONQUER</span></div><div class="card-body">
+      <div class="formula-box"><strong>CPL</strong> = Inversión / N° Leads &nbsp;·&nbsp; <em>Costo por Lead generado</em><table class="dtbl" id="tblGlos"><thead><tr><th>Término</th><th>Definición</th></tr></thead><tbody></tbody></table></div>
+      <div class="formula-box"><strong>CPA</strong> = Inversión / N° Nuevos Clientes &nbsp;·&nbsp; <em>Costo por Adquisición</em></div>
+      <div class="formula-box"><strong>CAC</strong> = Inversión TOTAL Marketing / N° Clientes Adquiridos</div>
+      <div class="formula-box"><strong>ROI</strong> = (Ganancia − Inversión) / Inversión × 100</div>
+      <div class="formula-box"><strong>ROAS</strong> = Ventas / Inversión Publicitaria</div>
+      <div class="formula-box"><strong>CR1</strong> = Prospectos / Leads × 100 &nbsp;|&nbsp; <strong>CR2</strong> = Clientes / Prospectos × 100 &nbsp;|&nbsp; <strong>CR3</strong> = Clientes / Leads × 100</div>
+      <div class="formula-box" style="border-color:#e67e22"><strong>Desde mayo 2026:</strong> CR1 = CR3 (Prospecto ≡ Lead)</div>
+    </div></div></div>
+    
+  </div>
+</div>
+
+</div><!-- /tab-content -->
+"""
+
+HTML_JS = """
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">
+// ── Dark Mode ──────────────────────────────────────────────────
+function toggleDark(){
+  var html=document.getElementById('htmlRoot');
+  var isDark=html.getAttribute('data-theme')==='dark';
+  if(isDark){
+    html.removeAttribute('data-theme');
+    document.getElementById('darkIcon').textContent='🌙';
+    document.getElementById('darkLbl').textContent='Modo oscuro';
+    try{localStorage.setItem('criocord-theme','light');}catch(e){}
+  } else {
+    html.setAttribute('data-theme','dark');
+    document.getElementById('darkIcon').textContent='\u2600\uFE0F';
+    document.getElementById('darkLbl').textContent='Modo claro';
+    try{localStorage.setItem('criocord-theme','dark');}catch(e){}
+  }
+}
+(function(){
+  try{
+    var t=localStorage.getItem('criocord-theme');
+    if(t==='dark'){
+      document.getElementById('htmlRoot').setAttribute('data-theme','dark');
+      document.getElementById('darkIcon').textContent='\u2600\uFE0F';
+      document.getElementById('darkLbl').textContent='Modo claro';
+    }
+  }catch(e){}
+})();
+</script>
+<script>
+const CONV=___CONV___,MIX=___MIX___,VM=___VM___,VMCAT=___VM_CAT___,CLIN=___CLIN___,
+      CAPT=___CAPT___,PPTO=___PPTO___,HIST=___HIST___,VEND=___VEND___,
+      COMMS=___COMMS___,ACT=___ACT___,PROY_DEF=___PROY___,META_VEND=___META___,
+      BINV=___BINV___,CAPT_REP=___CAPT_REP___,VM_PROSP=___VM_PROSP___,META_CAPT=___META_CAPT___,
+      SCORECARD=___SCORECARD___;
+
+// ── PALETA DIFERENCIADA ─────────────────────────────────
+const AZ='#0B5394',DO='#C9A961',TQ='#16A085',NA='#E67E22',
+      PU='#8E44AD',RO='#E74C3C',VE='#27AE60',CI='#2980B9';
+const PAL=[AZ,DO,TQ,NA,PU,RO,VE,CI];
+const C_SVC={UCU:AZ,ADN:TQ,Tamizaje:NA,MyPrenatal:PU,'Seguridad Total':RO};
+const C_VEND={'Liseth Rondon':AZ,'Adler Rosales':NA,'Heinrrich Stechmann':TQ,'Carolina Vasques':PU,'Lourdes':VE,'Yvan':CI,'Gerson':DO,'Adriana':RO};
+const C_CAPT={'Digital / MKT + Comercial':AZ,'VM — Milagros Herrera':DO,'VM — Marylin':NA,'VM — Velia':TQ};
+const C_VM={'Milagros Herrera':AZ,'Marylin':DO,'Velia':TQ};
+
+function fmt(n,d=0){return typeof n==='number'?n.toLocaleString('es-PE',{minimumFractionDigits:d,maximumFractionDigits:d}):String(n);}
+function S(n,d=2){return 'S/ '+fmt(n,d);}
+function avg(arr){const f=arr.filter(x=>typeof x==='number'&&x>0);return f.length?f.reduce((a,b)=>a+b,0)/f.length:0;}
+
+function isDark(){return document.getElementById('htmlRoot').getAttribute('data-theme')==='dark';}
+const LAY=(xo,yo,ex)=>{
+  var dk=isDark();
+  var tc=dk?'#8B949E':'rgba(0,0,0,.55)';
+  var gc=dk?'rgba(255,255,255,.06)':'rgba(0,0,0,.055)';
+  return Object.assign({
+    font:{family:'Segoe UI',size:11,color:tc},
+    margin:{t:18,b:42,l:50,r:14},
+    paper_bgcolor:'rgba(0,0,0,0)',
+    plot_bgcolor:dk?'rgba(255,255,255,.03)':'rgba(0,0,0,0)',
+    xaxis:Object.assign({showgrid:false,showline:false,zeroline:false,tickfont:{size:10,color:tc},tickcolor:dk?'rgba(255,255,255,.12)':'rgba(0,0,0,.15)'},xo||{}),
+    yaxis:Object.assign({showgrid:true,gridcolor:gc,showline:false,zeroline:false,tickfont:{size:10,color:tc}},yo||{}),
+    legend:{font:{size:10,color:tc},orientation:'h',y:-0.32,bgcolor:'rgba(0,0,0,0)',borderwidth:0}
+  },ex||{});
+};
+function initCollapsibleTables(){
+  document.querySelectorAll('.tabla-resp').forEach(wrapper=>{
+    const tbl=wrapper.querySelector('table');
+    if(!tbl) return;
+    const id=tbl.id||'tbl_'+Math.random().toString(36).slice(2,6);
+    const thead=tbl.querySelector('thead');
+    const label=thead?[...thead.querySelectorAll('th')].map(th=>th.textContent.trim()).slice(0,4).join(' · '):'Tabla';
+    // Wrap in collapsible structure
+    const toggle=document.createElement('div');
+    toggle.className='tbl-toggle';
+    toggle.innerHTML=`<span><i class="bi bi-table" style="margin-right:5px"></i>${label} …</span><i class="bi bi-chevron-down chev"></i>`;
+    const body=document.createElement('div');
+    body.className='tbl-body';
+    body.style.maxHeight='0px';
+    // Move table into body
+    wrapper.parentNode.insertBefore(toggle,wrapper);
+    wrapper.parentNode.insertBefore(body,wrapper);
+    body.appendChild(wrapper);
+    // Toggle logic
+    toggle.addEventListener('click',()=>{
+      const isOpen=toggle.classList.contains('open');
+      if(isOpen){
+        body.style.maxHeight='0px';
+        toggle.classList.remove('open');
+      } else {
+        body.style.maxHeight=body.scrollHeight+'px';
+        toggle.classList.add('open');
+        // Re-measure after content update
+        setTimeout(()=>{ body.style.maxHeight=body.scrollHeight+'px'; },50);
+      }
+    });
+  });
+  // Also expose expand function for JS-updated tables
+  window.expandTblBody=(tblId)=>{
+    const tbl=document.getElementById(tblId);
+    if(!tbl) return;
+    const body=tbl.closest('.tbl-body');
+    if(body) setTimeout(()=>{ body.style.maxHeight=body.scrollHeight+'px'; },60);
+  };
+}
+function pl(id,data,layout){Plotly.newPlot(id,data,layout,{responsive:true,displayModeBar:false});}
+
+// ── FILTRO GLOBAL ──────────────────────────────────────
+function getSelMeses(){
+  const cbs=[...document.querySelectorAll('.cb-mes:checked')].map(c=>c.value);
+  const all=[...document.querySelectorAll('.cb-mes')];
+  // If all checked or none checked → no filter (show all)
+  return (cbs.length===0||cbs.length===all.length)?[]:cbs;
+}
+function getGMes(){
+  // Legacy: return single month string only if exactly one is selected
+  const sel=getSelMeses();
+  return sel.length===1?sel[0]:'';
+}
+function gF(arr){
+  const sel=getSelMeses();
+  return sel.length?arr.filter(d=>sel.includes(d.mes)):arr;
+}
+function toggleAllMeses(cb){
+  document.querySelectorAll('.cb-mes').forEach(c=>{ c.checked=cb.checked; });
+  aplicarFiltroGlobal();
+}
+function aplicarFiltroGlobal(){
+  // Sync "Todos" checkbox
+  const all=[...document.querySelectorAll('.cb-mes')];
+  const sel=all.filter(c=>c.checked);
+  const cbAll=document.getElementById('cbMesAll');
+  if(cbAll) cbAll.checked=sel.length===all.length;
+  // Update label
+  const lbl=document.getElementById('lblMesFiltro');
+  if(lbl){
+    if(sel.length===0) lbl.textContent='Ninguno';
+    else if(sel.length===all.length) lbl.textContent='Todos los meses';
+    else if(sel.length<=3) lbl.textContent=sel.map(c=>c.value).join(', ');
+    else lbl.textContent=sel.length+' meses';
+  }
+  buildScorecard();buildResumen();buildVM();buildMkt();buildMix();buildPpto();buildVend();buildComparativo();
+}
+
+
+// ── CMO SCORECARD ─────────────────────────────────────────────
+function buildScorecard(){
+  if(!SCORECARD||!SCORECARD.sections)return;
+  var selM=getSelMeses();
+  var allM=SCORECARD.meses;
+  var activeMeses=selM.length?allM.filter(function(m){return selM.indexOf(m)>=0;}):allM;
+
+  function col(pct){
+    if(pct>=1.0)return '#16A34A';
+    if(pct>=0.85)return '#D97706';
+    return '#DC2626';
+  }
+  function bg(pct){
+    if(pct>=1.0)return '#F0FDF4';
+    if(pct>=0.85)return '#FFFBEB';
+    return '#FEF2F2';
+  }
+  function getPct(meta,real,better){
+    if(!meta||meta===0)return 0;
+    return better==='lower'?meta/real:real/meta;
+  }
+  function fmtV(v,f){
+    if(v===null||v===undefined)return '—';
+    if(f==='pct')return (v*100).toFixed(1)+'%';
+    if(f==='soles')return 'S/'+numFmt(Math.round(v));
+    if(f==='mxn')return 'MX$'+numFmt(Math.round(v));
+    v=Math.round(v);
+    if(v>=10000)return (v/1000).toFixed(1)+'K';
+    return numFmt(v);
+  }
+  function numFmt(n){
+    var s=Math.abs(n).toString();
+    var r=''; for(var i=s.length-1,c=0;i>=0;i--,c++){if(c&&c%3===0)r=','+r;r=s[i]+r;}
+    return (n<0?'-':'')+r;
+  }
+  function ytdReal(kpi){
+    if(kpi.fmt==='pct'||kpi.fmt==='mxn'){
+      var vals=activeMeses.map(function(m){
+        var mi=allM.indexOf(m);
+        return mi>=0?kpi.real[mi]:null;
+      }).filter(function(v){return v!==null;});
+      return vals.length?vals.reduce(function(a,b){return a+b;},0)/vals.length:0;
+    }
+    return activeMeses.reduce(function(s,m){
+      var mi=allM.indexOf(m);
+      return s+(mi>=0?kpi.real[mi]:0);
+    },0);
+  }
+  function ytdMeta(kpi){
+    if(kpi.fmt==='pct'||kpi.fmt==='mxn')return kpi.meta_fy;
+    if(kpi.fmt==='soles')return kpi.meta_fy;
+    return activeMeses.reduce(function(s,m){
+      var mi=allM.indexOf(m);
+      return s+(mi>=0?kpi.meta[mi]:0);
+    },0);
+  }
+
+  // ── Descripciones de metricas (tooltip al hover) ──────
+  var TIPS={
+    'leads_digital':'Leads Digital — Contactos generados por canales digitales (Google Ads, Meta Ads). Calculo: suma mensual de leads en plataformas digitales. Fuente: CMO Scorecard \u2460 / SEGUIMIENTO KPIS 2026',
+    'ventas_digitales':'Ventas Digitales — Servicios cerrados cuyo lead vino de canal digital (MKT CrioCord online). Fuente: SEGUIMIENTO PROSPECCION 2026',
+    'cpl':'CPL (Cost Per Lead) en pesos mexicanos MXN. Calculo: Inversion publicitaria digital / Total Leads Digital. MENOR = MEJOR. Fuente: PPTO DW / CMO Scorecard',
+    'cr_digital':'CR Digital — Tasa de conversion: leads digitales que cerraron como clientes. Calculo: Ventas Digitales / Total Leads Digital. Meta: 4.5%. Fuente: CMO Scorecard \u2460',
+    'influencers':'Influencers Activos — N\u00famero de influencers con contrato y actividad en el periodo. Meta: 1 mensual. Fuente: CMO Scorecard \u2461',
+    'aliados':'Aliados Activos — Alianzas estrat\u00e9gicas activas (cl\u00ednicas, laboratorios, etc.). Meta: 2 mensuales. Fuente: CMO Scorecard \u2461',
+    'leads_online':'Leads Online \u2014 Prospectos generados por canales digitales: Google Ads, Meta Ads, email marketing y MKT digital. Calculo: suma mensual de leads registrados en plataformas digitales. Fuente: CMO Scorecard \u2460 / SEGUIMIENTO KPIS 2026',
+    'leads_offline':'Leads Offline — Prospectos captados por Visita M\u00e9dica, ferias y eventos presenciales. Calculo: prospectos ingresados canal VM + eventos. Fuente: SEGUIMIENTO PROSPECCION 2026',
+    'total_leads':'TOTAL LEADS — Suma de leads digitales + leads offline del periodo. Meta FY: 25,500. Fuente: CMO Scorecard \u2462',
+    'cr_global':'CR Lead \u2192 Cliente (Total) — Conversion global de todos los leads a clientes cerrados. Calculo: Total Ventas / Total Leads. Meta: 4.5%. Fuente: CMO Scorecard \u2463',
+    'cr_offline':'CR Offline — Tasa de conversion de leads offline a ventas. Calculo: Ventas Canal Offline / Leads Offline. Meta: 4.5%. Fuente: CMO Scorecard \u2463',
+    'ventas_criocord':'Ventas CrioCord — Servicios cerrados y pagados: UCU, ADN, Tamizaje, My Prenatal, Seguridad Total. Meta FY 2026: 968 unidades. Fuente: SEGUIMIENTO PROSPECCION / Reporte Comercial'
+  };
+
+  // ── Hero KPI cards ────────────────────────────────────
+  var heroIds=[
+    {sec:'negocios',id:'ventas_criocord',icon:'bi-bag-check'},
+    {sec:'leads',id:'total_leads',icon:'bi-people'},
+    {sec:'digital',id:'leads_digital',icon:'bi-mouse'},
+    {sec:'digital',id:'ventas_digitales',icon:'bi-cart-check'},
+    {sec:'conversion',id:'cr_online',icon:'bi-funnel'},
+    {sec:'digital',id:'cpl',icon:'bi-currency-dollar'}
+  ];
+  var hDk=isDark();
+  var HT={
+    cardBg:   hDk?'#1C2128':'#fff',
+    cardBdr:  hDk?'#30363D':'#E2E8F0',
+    cardShdw: hDk?'0 1px 4px rgba(0,0,0,.4)':'0 1px 4px rgba(0,0,0,.07)',
+    lblC:     hDk?'#8B949E':'#6B7280',
+    valC:     hDk?'#E6EDF3':'#0D0D0D',
+    subC:     hDk?'#6E7681':'#9CA3AF',
+    trackBg:  hDk?'#30363D':'#F1F5F9'
+  };
+  var heroHtml='';
+  heroIds.forEach(function(h){
+    var sec=SCORECARD.sections.find(function(s){return s.id===h.sec;});
+    if(!sec)return;
+    var kpi=sec.kpis.find(function(k){return k.id===h.id;});
+    if(!kpi)return;
+    var real=ytdReal(kpi);
+    var meta=ytdMeta(kpi);
+    var pct=getPct(meta,real,kpi.better);
+    var pctPct=Math.round(pct*100);
+    var c=col(pct);
+    var b=bg(pct);
+    var barW=Math.min(pctPct,100);
+    var heroTip=TIPS[h.id]||'';
+    heroHtml+='<div class="col-md-2 col-6">'
+      +'<div title="'+heroTip+'" style="background:'+HT.cardBg+';border:1px solid '+HT.cardBdr+';border-radius:12px;padding:14px 12px;'
+      +'box-shadow:'+HT.cardShdw+';position:relative;overflow:hidden;height:100%;cursor:help">'
+      +'<div style="position:absolute;top:0;left:0;right:0;height:3px;background:'+sec.color+'"></div>'
+      +'<div style="font-size:.68rem;font-weight:600;color:'+HT.lblC+';text-transform:uppercase;'
+      +'letter-spacing:.05em;margin-bottom:4px">'+kpi.label+'</div>'
+      +'<div style="font-size:1.5rem;font-weight:800;color:'+HT.valC+';line-height:1.1">'+fmtV(real,kpi.fmt)+'</div>'
+      +'<div style="font-size:.66rem;color:'+HT.subC+';margin:2px 0">de '+fmtV(kpi.meta_fy,kpi.fmt)+' meta FY</div>'
+      +'<div style="background:'+HT.trackBg+';border-radius:99px;height:5px;margin:5px 0 3px;overflow:hidden">'
+        +'<div style="width:'+barW+'%;height:100%;background:'+c+';border-radius:99px;transition:width .6s"></div>'
+      +'</div>'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-top:2px">'
+        +'<span style="font-size:.82rem;font-weight:800;color:'+c+'">'+pctPct+'%</span>'
+        +'<span style="font-size:.63rem;background:'+b+';color:'+c+';border-radius:99px;'
+        +'padding:2px 7px;font-weight:700">'+(pct>=1?'✓ Meta':'↓ '+(100-pctPct)+'% falt.')+'</span>'
+      +'</div>'
+    +'</div></div>';
+  });
+  var heroEl=document.getElementById('scHero');
+  if(heroEl)heroEl.innerHTML=heroHtml;
+
+  // ── Section cards ─────────────────────────────────────
+  // Colores dinámicos según tema
+  var dk=isDark();
+  var T={
+    rowBorder: dk?'#21262D':'#F1F5F9',
+    lblColor:  dk?'#E6EDF3':'#1A1A2E',
+    lblUnder:  dk?'#30363D':'#CBD5E1',
+    metaColor: dk?'#8B949E':'#6B7280',
+    valColor:  dk?'#E6EDF3':'#0D0D0D',
+    thColor:   dk?'#8B949E':'#6B7280',
+    thBg:      dk?'#21262D':'#F8FAFC',
+    thBorder:  dk?'#30363D':'#E2E8F0',
+    cardBg:    dk?'#161B22':'#fff',
+    cardBorder:dk?'#30363D':'#E2E8F0',
+    subColor:  dk?'#6E7681':'#9CA3AF',
+    trackBg:   dk?'#30363D':'#E2E8F0',
+    dashColor: dk?'#30363D':'#E2E8F0'
+  };
+
+  var secHtml='';
+  SCORECARD.sections.forEach(function(sec){
+    var dotRow=activeMeses.map(function(m){
+      return '<th style="text-align:center;font-size:.68rem;color:'+T.thColor+';font-weight:600;padding:5px 6px">'+m+'</th>';
+    }).join('');
+
+    var rowsHtml='';
+    sec.kpis.forEach(function(kpi){
+      var real=ytdReal(kpi);
+      var meta=ytdMeta(kpi);
+      var pct=getPct(meta,real,kpi.better);
+      var pctPct=Math.min(Math.round(pct*100),999);
+      var c=col(pct);
+      var b=bg(pct);
+      var fw=kpi.bold?'700':'500';
+      var dotCells=activeMeses.map(function(m){
+        var mi=allM.indexOf(m);
+        if(mi<0||kpi.real[mi]===null||kpi.real[mi]===undefined){
+          return '<td style="text-align:center;padding:3px 4px;background:'+T.cardBg+'"><span style="color:'+T.dashColor+';font-size:.72rem">—</span></td>';
+        }
+        var mp=getPct(kpi.meta[mi],kpi.real[mi],kpi.better);
+        var mc=col(mp); var mbg=bg(mp);
+        var realVal=kpi.fmt==='pct'?(kpi.real[mi]*100).toFixed(2)+'%':fmtV(kpi.real[mi],kpi.fmt);
+        var metaVal=kpi.fmt==='pct'?(kpi.meta[mi]*100).toFixed(2)+'%':fmtV(kpi.meta[mi],kpi.fmt);
+        var pctAch=Math.round(mp*100);
+        var barW2=Math.min(pctAch,100);
+        return '<td style="text-align:center;padding:3px 4px;background:'+T.cardBg+'">'
+          +'<div style="display:inline-block;min-width:50px;background:'+mbg+';'
+          +'border:1px solid '+mc+'44;border-radius:7px;padding:4px 6px;line-height:1.25">'
+            +'<div style="font-size:.76rem;font-weight:700;color:'+mc+'">'+realVal+'</div>'
+            +'<div style="font-size:.58rem;color:'+T.subColor+';margin-top:1px">/ '+metaVal+'</div>'
+            +'<div style="margin-top:3px;background:'+T.trackBg+';border-radius:99px;height:3px;overflow:hidden">'
+              +'<div style="width:'+barW2+'%;height:100%;background:'+mc+'"></div>'
+            +'</div>'
+            +'<div style="font-size:.6rem;color:'+mc+';font-weight:700;margin-top:2px">'+pctAch+'%</div>'
+          +'</div>'
+        +'</td>';
+      }).join('');
+      var delta=(kpi.fmt==='pct')?(real-meta)*100:(real-meta);
+      var dSign=delta>=0?'+':'';
+      var dStr=kpi.fmt==='pct'?dSign+delta.toFixed(1)+'pp':dSign+fmtV(Math.abs(delta),kpi.fmt);
+      var dCol=delta>=0?'#16A34A':'#DC2626';
+      var tipText=TIPS[kpi.id]||'';
+      rowsHtml+='<tr style="border-bottom:1px solid '+T.rowBorder+'">'
+        +'<td title="'+tipText+'" style="padding:8px 10px;font-size:.78rem;font-weight:'+fw+';color:'+T.lblColor+';white-space:nowrap;cursor:help;background:'+T.cardBg+'">'
+          +'<span style="border-bottom:1px dashed '+T.lblUnder+'">'+kpi.label+'</span>'
+          +(kpi.note?'<br><span style="font-size:.61rem;color:'+T.subColor+'">('+kpi.note+')</span>':'')
+        +'</td>'
+        +'<td style="text-align:right;padding:8px 8px;font-size:.76rem;color:'+T.metaColor+';white-space:nowrap;background:'+T.cardBg+'">'+fmtV(meta,kpi.fmt)+'</td>'
+        +'<td style="text-align:right;padding:8px 8px;font-size:.84rem;font-weight:800;color:'+T.valColor+';white-space:nowrap;background:'+T.cardBg+'">'+fmtV(real,kpi.fmt)+'</td>'
+        +'<td style="text-align:right;padding:8px 6px;font-size:.73rem;font-weight:700;color:'+dCol+';white-space:nowrap;background:'+T.cardBg+'">'+dStr+'</td>'
+        +'<td style="text-align:center;padding:8px 8px;background:'+T.cardBg+'">'
+          +'<span style="display:inline-block;background:'+b+';color:'+c+';border-radius:99px;'
+          +'padding:2px 9px;font-size:.73rem;font-weight:700;min-width:44px">'+pctPct+'%</span>'
+        +'</td>'
+        +dotCells
+      +'</tr>';
+    });
+
+    secHtml+='<div class="card mb-3" style="border:1px solid '+T.cardBorder+'">'
+      +'<div class="card-header" style="background:linear-gradient(135deg,'+sec.color+' 0%,'+adjustColor(sec.color)+' 100%)">'
+        +'<span style="font-size:.85rem;font-weight:700;letter-spacing:.02em">'
+          +sec.num+' '+sec.title
+        +'</span>'
+      +'</div>'
+      +'<div class="card-body p-0" style="background:'+T.cardBg+'">'
+        +'<div style="overflow-x:auto">'
+        +'<table style="width:100%;border-collapse:collapse">'
+          +'<thead><tr style="background:'+T.thBg+';border-bottom:2px solid '+T.thBorder+'">'
+            +'<th style="text-align:left;padding:7px 10px;font-size:.7rem;color:'+T.thColor+';font-weight:700;text-transform:uppercase">KPI</th>'
+            +'<th style="text-align:right;padding:7px 8px;font-size:.7rem;color:'+T.thColor+';font-weight:700;white-space:nowrap">META</th>'
+            +'<th style="text-align:right;padding:7px 8px;font-size:.7rem;color:'+T.thColor+';font-weight:700;white-space:nowrap">REAL YTD</th>'
+            +'<th style="text-align:right;padding:7px 6px;font-size:.7rem;color:'+T.thColor+';font-weight:700">Δ</th>'
+            +'<th style="text-align:center;padding:7px 8px;font-size:.7rem;color:'+T.thColor+';font-weight:700">CUMPL</th>'
+            +dotRow
+          +'</tr></thead>'
+          +'<tbody>'+rowsHtml+'</tbody>'
+        +'</table>'
+        +'</div>'
+      +'</div>'
+    +'</div>';
+  });
+  var secEl=document.getElementById('scSections');
+  if(secEl)secEl.innerHTML=secHtml;
+}
+
+function adjustColor(hex){
+  // Darken hex slightly for gradient
+  var r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  r=Math.max(0,r-30);g=Math.max(0,g-30);b=Math.max(0,b-30);
+  return '#'+[r,g,b].map(function(v){return v.toString(16).padStart(2,'0');}).join('');
+}
+
+
+// ── RESUMEN ────────────────────────────────────────────
+function buildResumen(){
+  const BI=gF(BINV); const D=gF(CONV); const CR=gF(CAPT_REP);
+
+  // ── KPI Fila 1: Inversión & Presupuesto ──────────────
+  const tInvPub=BI.reduce((a,d)=>a+d.inv_pub,0);
+  const tInvTot=BI.reduce((a,d)=>a+d.inv_total,0);
+  const tPpto=BI.reduce((a,d)=>a+d.ppto_total,0);
+  const avgPct=BI.length?Math.round(BI.reduce((a,d)=>a+d.pct_ejec,0)/BI.length):0;
+  document.getElementById('kpiInv').innerHTML=[
+    {v:'S/ '+fmt(tInvPub,0),l:'Inversión Publicitaria',s:'Meta / Google / Digital'},
+    {v:'S/ '+fmt(tInvTot,0),l:'Inversión Total MKT',   s:'Totalidad del área'},
+    {v:'S/ '+fmt(tPpto,0),  l:'Presupuesto Total',      s:'Planificado acum.'},
+    {v:avgPct+'%',          l:'% Ejecutado (prom.)',    s:'Gasto vs Presupuesto'},
+  ].map(k=>`<div class="col-md-3 col-6"><div class="kpi-box"><div class="val">${k.v}</div><div class="lbl">${k.l}</div><div class="sub">${k.s}</div></div></div>`).join('');
+
+  // ── KPI Fila 2: Desempeño ────────────────────────────
+  if(D.length){
+    const tVen=D.reduce((a,d)=>a+d.venta,0);
+    const tServ=D.reduce((a,d)=>a+d.serv,0);
+    const roas=D.map(d=>d.roas); const cr3=D.map(d=>d.cr3);
+    document.getElementById('kpiResumen').innerHTML=[
+      {v:'S/ '+fmt(tVen,0),  l:'Ventas Acumuladas',  s:'Todos los servicios'},
+      {v:fmt(tServ),         l:'Clientes Totales',   s:'Servicios cerrados'},
+      {v:fmt(avg(roas),2)+'x',l:'ROAS Promedio',     s:'Retorno inv. publicitaria'},
+      {v:fmt(avg(cr3),1)+'%',l:'CR Lead→Cliente',    s:'Conversión global'},
+    ].map(k=>`<div class="col-md-3 col-6"><div class="kpi-box"><div class="val">${k.v}</div><div class="lbl">${k.l}</div><div class="sub">${k.s}</div></div></div>`).join('');
+  }
+
+  // ── Gráfico: Inversión Pub vs Total MKT vs Presupuesto ──
+  if(BI.length){
+    const bm=BI.map(d=>d.mes);
+    pl('chResInvComp',[
+      {x:bm,y:BI.map(d=>d.ppto_total), name:'Presupuesto Planificado',type:'bar',marker:{color:'rgba(11,83,148,.28)',line:{color:AZ,width:2}}},
+      {x:bm,y:BI.map(d=>d.inv_total),  name:'Inversión Total MKT',    type:'bar',marker:{color:NA}},
+      {x:bm,y:BI.map(d=>d.inv_pub),    name:'Inv. Publicitaria',      type:'bar',marker:{color:AZ}},
+    ],Object.assign(LAY({},{title:'S/'}),{barmode:'group',
+      annotations:BI.map((d,i)=>({x:bm[i],y:d.inv_total+2000,text:d.pct_ejec+'%',
+        showarrow:false,font:{size:10,color:d.pct_ejec>=100?RO:VE}}))}));
+  }
+
+  // ── Gráfico: Online vs Offline UNIDADES con filtro servicio ──
+  const svcFilt=(document.getElementById('fResSvc')?.value||'').toLowerCase();
+  const MESES_ALL=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+  const mesActivo=getGMes();
+  const mesesBase=mesActivo?[mesActivo]:MESES_ALL.filter(m=>CAPT_REP.some(d=>d.mes===m));
+
+  const getUnits=(canal,svc)=>mesesBase.map(m=>{
+    const rows=CAPT_REP.filter(d=>d.mes===m&&d.canal===canal);
+    if(svc) return rows.reduce((a,d)=>a+(d[svc]||0),0);
+    return rows.reduce((a,d)=>a+d.total,0);
+  });
+  const onlU=getUnits('online',svcFilt), offU=getUnits('offline',svcFilt);
+  const hasData=onlU.some(v=>v>0)||offU.some(v=>v>0);
+
+  if(hasData){
+    pl('chResOV',[
+      {x:mesesBase,y:onlU,name:'Online / MKT Digital',type:'bar',marker:{color:AZ}},
+      {x:mesesBase,y:offU,name:'Offline / VM',         type:'bar',marker:{color:DO}},
+    ],Object.assign(LAY({},{title:'Unidades'}),{barmode:'group'}));
+  } else {
+    document.getElementById('chResOV').innerHTML=
+      '<div style="display:flex;align-items:center;justify-content:center;height:220px;color:#aaa;font-size:.85rem"><i class="bi bi-hourglass" style="margin-right:6px"></i>Datos pendientes de actualización para este mes</div>';
+  }
+
+  // ── Gráfico: ROAS ────────────────────────────────────
+  if(D.length){
+    const dm=D.map(d=>d.mes),roas=D.map(d=>d.roas);
+    pl('chResRoas',[{x:dm,y:roas,mode:'lines+markers',name:'ROAS',
+      line:{color:DO,width:2.5},marker:{size:7,color:DO}}],LAY({},{title:'ROAS'}));
+  }
+
+  // ── Gráfico: Tasa de conversión simplificada ──────────
+  if(D.length){
+    const dm=D.map(d=>d.mes),cr3=D.map(d=>d.cr3);
+    const preMayo=D.filter(d=>!d.mayo_mode);
+    const traces=[{x:dm,y:cr3,name:'Lead → Cliente (CR3)',mode:'lines+markers',
+      line:{color:DO,width:2.5},marker:{size:8,color:DO}}];
+    if(preMayo.length){
+      traces.unshift({x:preMayo.map(d=>d.mes),y:preMayo.map(d=>d.cr1),
+        name:'Lead → Prosp. Válido (CR1 — solo ENE-ABR)',mode:'lines+markers',
+        line:{color:AZ,width:2,dash:'dot'},marker:{size:6,color:AZ}});
+    }
+    pl('chResCr',traces,LAY({},{title:'%'}));
+  }
+
+  buildComparativo();
+  // ── Tabla: captación por representante y servicio ────
+  const filtCR=CR.filter(d=>!mesActivo||d.mes===mesActivo);
+  document.querySelector('#tblCaptRep tbody').innerHTML=filtCR.length>0
+    ? filtCR.map(d=>{
+        const badge=d.canal==='online'
+          ?'<span class="badge-prog">Online</span>'
+          :'<span class="badge-fin">Offline/VM</span>';
+        return `<tr><td>${d.mes}</td><td>${d.rep}</td><td>${badge}</td>`+
+          `<td>${d.ucu}</td><td>${d.tamizaje}</td><td>${d.adn}</td><td>${d.myprenatal}</td>`+
+          `<td><b>${d.total}</b></td></tr>`;
+      }).join('')
+    : '<tr><td colspan="8" style="text-align:center;color:#aaa;padding:12px">Sin datos para el período seleccionado (datos FEB disponibles — selecciona "Todos los meses")</td></tr>';
+}
+
+// ── CAPTACIÓN ──────────────────────────────────────────
+function toggleDropdown(id){
+  const dd=document.getElementById(id);
+  const isOpen=dd.style.display!=='none';
+  // Close all dropdowns first
+  ['ddVend','ddSvc'].forEach(d=>{const el=document.getElementById(d);if(el)el.style.display='none';});
+  if(!isOpen) dd.style.display='block';
+}
+document.addEventListener('click',e=>{
+  if(!e.target.closest('#btnVendSel')&&!e.target.closest('#ddVend')) {
+    const dd=document.getElementById('ddVend'); if(dd) dd.style.display='none';
+  }
+  if(!e.target.closest('#btnSvcSel')&&!e.target.closest('#ddSvc')) {
+    const dd=document.getElementById('ddSvc'); if(dd) dd.style.display='none';
+  }
+});
+function toggleAllVend(cb){
+  document.querySelectorAll('.cb-vend').forEach(c=>{ c.checked=cb.checked; });
+  buildComparativo();
+}
+function toggleAllSvc(cb){
+  document.querySelectorAll('.cb-svc').forEach(c=>{ c.checked=cb.checked; });
+  buildComparativo();
+}
+function updateLabel(cbClass,lblId,allLabel){
+  const all=[...document.querySelectorAll('.'+cbClass)];
+  const sel=all.filter(c=>c.checked);
+  const lbl=document.getElementById(lblId);
+  if(!lbl) return;
+  if(sel.length===0) lbl.textContent='Ninguno';
+  else if(sel.length===all.length) lbl.textContent=allLabel;
+  else lbl.textContent=sel.length+' seleccionados';
+}
+function buildComparativo(){
+  updateLabel('cb-vend','lblVendSel','Todos los asesores');
+  updateLabel('cb-svc','lblSvcSel','Todos los servicios');
+  const selVend=[...document.querySelectorAll('.cb-vend:checked')].map(c=>c.value);
+  const selSvc=[...document.querySelectorAll('.cb-svc:checked')].map(c=>c.value);
+  const svcLbl={ucu:'UCU/Cordones',adn:'ADN',tamizaje:'Tamizaje',myprenatal:'My Prenatal',seg_total:'Seg. Total'};
+  const svcClr={ucu:AZ,adn:TQ,tamizaje:NA,myprenatal:PU,seg_total:RO};
+  const meses=['ENE','FEB','MAR','ABR','MAY'];
+  const tipo=document.getElementById('fCompTipo')?.value||'line';
+  if(!selVend.length||!selSvc.length){
+    Plotly.newPlot('chResComp',[],LAY({},{}),{responsive:true,displayModeBar:false});
+    return;
+  }
+  // One trace per (vendedor × servicio) combination — colored by vendedor if 1 service, by service if multiple
+  const colorByVend=selSvc.length===1;
+  const traces=[];
+  selVend.forEach((vend,vi)=>{
+    selSvc.forEach((svc,si)=>{
+      const label=colorByVend?vend:(selVend.length===1?svcLbl[svc]:vend+' — '+svcLbl[svc]);
+      const color=colorByVend?(C_VEND[vend]||PAL[vi%8]):svcClr[svc];
+      const yVals=meses.map(m=>{
+        const row=VEND.find(d=>d.exec===vend&&d.mes===m);
+        return row?(row[svc]||0):null;
+      });
+      // Only include if any data point exists
+      if(!yVals.every(v=>v===null)){
+        const xValid=meses.filter((_,i)=>yVals[i]!==null);
+        const yValid=yVals.filter(v=>v!==null);
+        if(tipo==='line'){
+          traces.push({x:xValid,y:yValid,name:label,mode:'lines+markers',
+            line:{color,width:2.5},marker:{size:7,color}});
+        } else {
+          traces.push({x:xValid,y:yValid,name:label,type:'bar',
+            marker:{color,line:{width:0}}});
+        }
+      }
+    });
+  });
+  const layout=tipo==='bar'
+    ?Object.assign(LAY({},{title:'Unidades'}),{barmode:'group',bargap:.2,bargroupgap:.05})
+    :LAY({},{title:'Unidades'});
+  Plotly.newPlot('chResComp',traces,layout,{responsive:true,displayModeBar:false});
+}
+function buildVmUnitKpis(){
+  const gm=getGMes();
+  const CR=gm?CAPT_REP.filter(d=>d.mes===gm):CAPT_REP;
+  const sOff=(document.getElementById('fVmUnitOff')?.value||'').toLowerCase();
+  const sOn=(document.getElementById('fVmUnitOn')?.value||'').toLowerCase();
+  // seg_total comes from vendedores, not CAPT_REP
+  let offVal,onVal;
+  if(sOff==='seg_total'){
+    const gm2=getGMes(); const vd=gm2?VEND.filter(d=>d.mes===gm2):VEND;
+    offVal=vd.reduce((a,d)=>a+(d.seg_total||0),0);
+  } else {
+    offVal=CR.filter(d=>d.canal==='offline').reduce((a,d)=>a+(sOff?d[sOff]||0:d.total),0);
+  }
+  if(sOn==='seg_total'){
+    onVal=0; // Seg Total is offline only
+  } else {
+    onVal=CR.filter(d=>d.canal==='online').reduce((a,d)=>a+(sOn?d[sOn]||0:d.total),0);
+  }
+  const el1=document.getElementById('vmUnitsOffline');
+  const el2=document.getElementById('vmUnitsOnline');
+  if(el1) el1.textContent=fmt(offVal);
+  if(el2) el2.textContent=fmt(onVal);
+}
+function buildCaptProsp(){
+  const selM=getSelMeses();
+  const allMesesBase=['ENE','FEB','MAR','ABR','MAY'];
+  const allMeses=allMesesBase.filter(m=>!selM.length||selM.includes(m));
+  const pd=VM_PROSP.filter(d=>!selM.length||selM.includes(d.mes));
+  const CR=CAPT_REP.filter(d=>!selM.length||selM.includes(d.mes));
+  // Service filters for TC
+  const svcOn=(document.getElementById('fTcOnSvc')?.value||'').toLowerCase();
+  const svcOff=(document.getElementById('fTcOffSvc')?.value||'').toLowerCase();
+  const svcLabel={ucu:'UCU',tamizaje:'Tamizaje',adn:'ADN',myprenatal:'My Prenatal',seg_total:'Seg. Total'};
+
+  // ── PROSPECTOS por captador/mes ──────────────────────────
+  const getMkt=m=>pd.find(d=>d.captador==='MKT CrioCord'&&d.mes===m)?.leads||0;
+  const getVmLima=m=>{
+    const mil=(pd.find(d=>d.captador==='Milagros H'&&d.mes===m)?.leads||0)+(pd.find(d=>d.captador==='Milagros'&&d.mes===m)?.leads||0);
+    const mar=pd.find(d=>d.captador==='Marylin'&&d.mes===m)?.leads||0;
+    if(mil+mar>0) return {mil,mar};
+    const tot=pd.find(d=>d.captador==='VM (total)'&&d.mes===m)?.leads||0;
+    return {mil:Math.round(tot*0.6),mar:Math.round(tot*0.4)};
+  };
+  const getVelia=m=>pd.find(d=>d.captador==='Velia'&&d.mes===m)?.leads||0;
+  const prospSvc=(document.getElementById('fProspSvc')?.value||'').toLowerCase();
+  // If service selected: show captaciones of that service; else: show total leads
+  let mktY,milY,marY,velY,yTitle;
+  if(prospSvc){
+    // Captaciones por servicio desde CAPT_REP
+    const getCaptSvc=(canal,reps,m)=>CR.filter(d=>d.canal===canal&&d.mes===m&&(!reps||reps.includes(d.rep))).reduce((a,d)=>a+(d[prospSvc]||0),0);
+    mktY=allMeses.map(m=>getCaptSvc('online',['MKT CrioCord'],m));
+    milY=allMeses.map(m=>getCaptSvc('offline',['Milagros H','Milagritos','Milagros'],m));
+    marY=allMeses.map(m=>getCaptSvc('offline',['Marylin'],m));
+    velY=allMeses.map(m=>getCaptSvc('offline',['Velia'],m));
+    yTitle='Captaciones '+({ucu:'UCU',tamizaje:'Tamizaje',adn:'ADN',myprenatal:'My Prenatal',seg_total:'Seg. Total'}[prospSvc]||prospSvc);
+  } else {
+    mktY=allMeses.map(getMkt);
+    milY=allMeses.map(m=>getVmLima(m).mil);
+    marY=allMeses.map(m=>getVmLima(m).mar);
+    velY=allMeses.map(getVelia);
+    yTitle='Prospectos';
+  }
+  const totY=allMeses.map((_,i)=>mktY[i]+milY[i]+marY[i]+velY[i]);
+  const anns=allMeses.map((m,i)=>totY[i]>0?{x:m,y:totY[i],text:fmt(totY[i]),showarrow:false,yanchor:'bottom',font:{size:11,color:'#555'}}:null).filter(Boolean);
+  pl('chVmProspMes',[
+    {x:allMeses,y:mktY,name:'MKT CrioCord',      type:'bar',marker:{color:AZ,line:{width:0}}},
+    {x:allMeses,y:milY,name:'Milagros H (Lima)',  type:'bar',marker:{color:TQ,line:{width:0}}},
+    {x:allMeses,y:marY,name:'Marylin (Lima)',     type:'bar',marker:{color:DO,line:{width:0}}},
+    {x:allMeses,y:velY,name:'Velia (AQP)',        type:'bar',marker:{color:NA,line:{width:0}}},
+  ].filter(t=>t.y.some(v=>v>0)),
+  Object.assign(LAY({},{title:yTitle}),{barmode:'group',bargap:.2,bargroupgap:.06,annotations:anns}));
+
+  // ── PIE: Online vs Offline (totales o por servicio) ─────
+  const totOnline=mktY.reduce((a,v)=>a+v,0);
+  const totOffline=milY.reduce((a,v)=>a+v,0)+marY.reduce((a,v)=>a+v,0)+velY.reduce((a,v)=>a+v,0);
+  const grandTotal=totOnline+totOffline;
+  const pieLabel=prospSvc?('Online (MKT) · '+yTitle.replace('Captaciones ','')):null;
+  pl('chVmProspPie',[{
+    labels:[prospSvc?('Online — '+yTitle.replace('Captaciones ','')):' Online (MKT)',
+            prospSvc?('Offline — '+yTitle.replace('Captaciones ','')):' Offline (VM)'],
+    values:[totOnline,totOffline],
+    type:'pie',hole:.42,pull:.04,
+    marker:{colors:[AZ,TQ],line:{color:'#fff',width:3}},
+    textinfo:'percent',textposition:'inside',insidetextorientation:'radial',textfont:{size:14}}],
+    Object.assign(LAY({},{}),{showlegend:true,
+      legend:{orientation:'v',x:1.0,y:.5,xanchor:'left',font:{size:11},bgcolor:'rgba(0,0,0,0)'},
+      margin:{t:10,b:10,l:10,r:130},
+      annotations:[{
+        text:fmt(grandTotal)+'<br><span style=\"font-size:10px\">'+( prospSvc?yTitle.replace('Captaciones ',''):'prospectos')+'</span>',
+        x:.5,y:.5,showarrow:false,font:{size:13,color:'#333'},xanchor:'center',yanchor:'middle'
+      }]
+    }));
+
+  // ── TC ONLINE por servicio ───────────────────────────────
+  const buildTc=(canal,svcFilter,color,elId)=>{
+    const svcs=svcFilter?[svcFilter]:['ucu','tamizaje','adn','myprenatal'];
+    // seg_total not available in CAPT_REP — skip TC for seg_total
+    if(svcFilter==='seg_total'){
+      document.getElementById(elId).innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#9CA3AF;font-size:.82rem"><i class="bi bi-info-circle me-2"></i>Seguridad Total no tiene desglose de tasa de cierre por canal</div>';
+      return;
+    }
+    const svcColors={ucu:AZ,tamizaje:NA,adn:TQ,myprenatal:PU};
+    const traces=svcs.map(s=>{
+      const yv=allMeses.map(m=>{
+        let leads=0;
+        if(canal==='online') leads=VM_PROSP.find(d=>d.captador==='MKT CrioCord'&&d.mes===m)?.leads||0;
+        else leads=(VM_PROSP.filter(d=>d.canal==='vm'&&d.mes===m).reduce((a,d)=>a+d.leads,0));
+        if(!leads) return null;
+        const caps=CR.filter(d=>d.canal===canal&&d.mes===m).reduce((a,d)=>a+(d[s]||0),0);
+        return +(caps/leads*100).toFixed(1);
+      });
+      const xv=allMeses.filter((_,i)=>yv[i]!==null);
+      const yf=yv.filter(v=>v!==null);
+      if(!xv.length) return null;
+      return {x:xv,y:yf,mode:'lines+markers+text',name:svcLabel[s]||s,
+        line:{color:svcFilter?color:svcColors[s],width:2.5},
+        marker:{size:7,color:svcFilter?color:svcColors[s]},
+        text:yf.map(v=>v+'%'),textposition:'top center',textfont:{size:10}};
+    }).filter(Boolean);
+    const allY=traces.flatMap(t=>t.y);
+    const maxV=allY.length?Math.max(...allY)+3:15;
+    pl(elId,traces.length?traces:[{x:[],y:[],mode:'lines',name:'Sin datos'}],
+      LAY({},{title:'%',range:[0,maxV]}));
+  };
+  buildTc('online',svcOn,AZ,'chTcOnline');
+  buildTc('offline',svcOff,DO,'chTcOffline');
+}
+function buildCaptCards(){
+  const gm=getGMes();
+  const fData=gm?CAPT_REP.filter(d=>d.mes===gm):CAPT_REP;
+  const nMeses=gm?1:[...new Set(CAPT_REP.map(d=>d.mes))].length;
+  const col=(p)=>p>=100?VE:p>=70?NA:RO;
+  const bar=(p)=>`<div style="background:${isDark()?'#30363D':'#eee'};border-radius:3px;overflow:hidden;height:5px;margin:2px 0"><div style="width:${Math.min(p,100)}%;background:${col(p)};height:100%"></div></div>`;
+  const sRow=(lbl,tot,meta,p)=>`<div style="display:flex;justify-content:space-between;align-items:center;font-size:.72rem"><span style="color:${isDark()?'#8B949E':'#555'}">${lbl}</span><span style="font-weight:700;color:${col(p)}">${tot}/${meta} <small>(${p}%)</small></span></div>${bar(p)}`;
+
+  // Captadores individuales separados — Milagros y Marylin independientes
+  const captDefs=[
+    {label:'Milagros H.',reps:['Milagros H','Milagritos'],zona:'Lima',color:TQ,sub:'VM Lima'},
+    {label:'Marylin',   reps:['Marylin'],                  zona:'Lima',color:DO,sub:'VM Lima'},
+    {label:'Velia',     reps:['Velia'],                    zona:'Arequipa',color:NA,sub:'VM Arequipa'},
+    {label:'MKT CrioCord',reps:['MKT CrioCord'],           zona:null,  color:AZ,sub:'Canal Online'},
+  ];
+  const periodoLbl=gm||('Acum. '+[...new Set(CAPT_REP.map(d=>d.mes))].join('\u2013'));
+
+  const cards=captDefs.map(def=>{
+    const rows=fData.filter(d=>def.reps.includes(d.rep));
+    if(!rows.length) return '';
+    const tU=rows.reduce((a,d)=>a+(d.ucu||0),0);
+    const tA=rows.reduce((a,d)=>a+(d.adn||0),0);
+    const tT=rows.reduce((a,d)=>a+(d.tamizaje||0),0);
+    const tM=rows.reduce((a,d)=>a+(d.myprenatal||0),0);
+    const tTot=rows.reduce((a,d)=>a+d.total,0);
+    // Meta individual: Lima reps use META_CAPT.Lima (equipo) — Velia uses Arequipa
+    // Lima meta is combined (Milagros+Marylin), so each shows vs full Lima meta as referencia equipo
+    let mU=0,mA=0,mTa=0,mMp=0,metaLabel='meta equipo';
+    if(def.zona==='Lima'){
+      const mc=META_CAPT.Lima;
+      mU=mc.ucu*nMeses; mA=mc.adn*nMeses; mTa=mc.tamizaje*nMeses; mMp=mc.myprenatal*nMeses;
+      metaLabel='meta Lima';
+    } else if(def.zona==='Arequipa'){
+      const mc=META_CAPT.Arequipa;
+      mU=mc.ucu*nMeses; mA=mc.adn*nMeses; mTa=mc.tamizaje*nMeses; mMp=mc.myprenatal*nMeses;
+      metaLabel='meta AQP';
+    }
+    const hasMeta=mU>0;
+    const pU=mU>0?Math.round(tU/mU*100):0;
+    const pA=mA>0?Math.round(tA/mA*100):0;
+    const pTa=mTa>0?Math.round(tT/mTa*100):0;
+    const pMp=mMp>0?Math.round(tM/mMp*100):0;
+
+    // Row sin meta: solo unidades, mismo estilo visual que con meta pero sin %
+    const sRowNoMeta=(lbl,tot)=>`<div style="display:flex;justify-content:space-between;align-items:center;font-size:.72rem"><span style="color:${isDark()?'#8B949E':'#555'}">${lbl}</span><span style="font-weight:700;color:${isDark()?'#E6EDF3':'#333'}">${tot}</span></div><div style="background:${isDark()?'#30363D':'#eee'};border-radius:3px;overflow:hidden;height:5px;margin:2px 0"><div style="width:${isDark()?'0':'100'}%;background:${isDark()?'#30363D':'#ddd'};height:100%"></div></div>`;
+    const bodyRows=hasMeta
+      ?sRow('UCU / Cordones',tU,mU,pU)+sRow('ADN',tA,mA,pA)+sRow('Tamizaje',tT,mTa,pTa)+sRow('My Prenatal',tM,mMp,pMp)
+      :sRowNoMeta('UCU / Cordones',tU)+sRowNoMeta('ADN',tA)+sRowNoMeta('Tamizaje',tT)+sRowNoMeta('My Prenatal',tM);
+
+    const metaNote=hasMeta?`<div style="font-size:.62rem;color:#bbb;margin-top:4px">* vs ${metaLabel} completo</div>`:'';
+    return `<div class="col-md-3 col-6"><div class="kpi-box" style="border-top:3px solid ${def.color};text-align:left">
+      <div style="font-weight:700;font-size:.88rem;color:${def.color};margin-bottom:1px">${def.label}</div>
+      <div style="font-size:.68rem;color:#888;margin-bottom:6px">${def.sub} · ${periodoLbl}</div>
+      ${bodyRows}${metaNote}
+    </div></div>`;
+  }).filter(Boolean).join('');
+  document.getElementById('captCards').innerHTML=cards;
+}
+function buildVM(){
+  const ef=document.getElementById('fVmExec')?.value||'';
+  const svcKey=(document.getElementById('fVmSvc')?.value||'').toLowerCase();
+  const capFilter=(document.getElementById('fVmCap')?.value||'');
+  const catRepFilter=(document.getElementById('fVmCatRep')?.value||'');
+  const capRepFilter=(document.getElementById('fVmCapRep')?.value||'');
+  const capSvcDist=(document.getElementById('fVmCapSvcDist')?.value||'').toLowerCase();
+  const vmD=gF(VM).filter(d=>!ef||d.exec===ef);
+  const vmCD=gF(VMCAT).filter(d=>!ef||d.exec===ef);
+  const CR=gF(CAPT_REP);
+  const allReps=[...new Set(VM.map(d=>d.exec))];
+  const shReps=ef?[ef]:allReps;
+  const meses=[...new Set(vmD.length?vmD.map(d=>d.mes):VM.map(d=>d.mes))];
+
+  // KPIs
+  document.getElementById('vmTotVis').textContent=fmt(vmD.reduce((a,d)=>a+d.visitas,0));
+  document.getElementById('vmTotClin').textContent=CLIN.length;
+  const totCapOffline=CR.filter(d=>d.canal==='offline').reduce((a,d)=>a+(svcKey?d[svcKey]||0:d.total),0);
+  const totCapOnline=CR.filter(d=>d.canal==='online').reduce((a,d)=>a+(svcKey?d[svcKey]||0:d.total),0);
+  document.getElementById('vmTotPot').textContent=fmt(totCapOffline);
+  document.getElementById('vmMktCap').textContent=fmt(totCapOnline);
+  const totCap=CR.reduce((a,d)=>a+(svcKey?d[svcKey]||0:d.total),0);
+  document.getElementById('vmTotCap').textContent=fmt(totCap);
+  // Prospectos totales
+  const pdFiltered=gF(VM_PROSP);
+  const totProsp=pdFiltered.reduce((a,d)=>a+d.leads,0);
+  document.getElementById('vmTotProsp').textContent=fmt(totProsp);
+  // TC Online (MKT) y TC Offline (VM)
+  const mktLeadsF=pdFiltered.filter(d=>d.canal==='mkt').reduce((a,d)=>a+d.leads,0);
+  const mktCapF=CR.filter(d=>d.canal==='online').reduce((a,d)=>a+(svcKey?d[svcKey]||0:d.total),0);
+  const vmLeadsF=pdFiltered.filter(d=>d.canal==='vm').reduce((a,d)=>a+d.leads,0);
+  const vmCapF=CR.filter(d=>d.canal==='offline').reduce((a,d)=>a+(svcKey?d[svcKey]||0:d.total),0);
+  const tcOnlineEl=document.getElementById('vmTcOnline');
+  const tcOfflineEl=document.getElementById('vmTcOffline');
+  if(tcOnlineEl) { tcOnlineEl.textContent=mktLeadsF>0?(mktCapF/mktLeadsF*100).toFixed(1)+'%':'—'; }
+  if(tcOfflineEl){ tcOfflineEl.textContent=vmLeadsF>0?(vmCapF/vmLeadsF*100).toFixed(1)+'%':'—'; }
+  const totLeadsAll=(mktLeadsF||0)+(vmLeadsF||0);
+  const totCapsAll=(mktCapF||0)+(vmCapF||0);
+  const tcGenEl=document.getElementById('vmTcGeneral');
+  if(tcGenEl) tcGenEl.textContent=totLeadsAll>0?(totCapsAll/totLeadsAll*100).toFixed(1)+'%':'—';
+  buildVmUnitKpis();
+
+  buildCaptCards();
+  buildCaptProsp();
+  // Gráfico principal: captaciones por captador (MKT + cada VM rep)
+  // "MKT CrioCord" como captador online, cada rep de VM como captador offline
+  const selM=getSelMeses();const crMeses=[...new Set(CAPT_REP.map(d=>d.mes))].filter(m=>!selM.length||selM.includes(m));
+  const allCaptadores=[...new Set(CAPT_REP.map(d=>d.rep))].filter(r=>!capFilter||r===capFilter);
+  const capColors={'MKT CrioCord':AZ,'Milagros H':TQ,'Marylin':DO,'Velia':NA,'Milagritos':PU,'Adler':VE,'Alejandra':CI,'Renzo':RO};
+  // Si hay filtro de captador: mostrar desglose por servicio. Si no: por captador.
+  let captTraces;
+  if(capFilter){
+    const svcKeys=['ucu','tamizaje','adn','myprenatal'];
+    const svcLabels={ucu:'UCU / Cordones',tamizaje:'Tamizaje',adn:'ADN',myprenatal:'My Prenatal'};
+    const svcColors={ucu:AZ,tamizaje:NA,adn:TQ,myprenatal:PU};
+    captTraces=(svcKey?[svcKey]:svcKeys).map(s=>{
+      const yv=crMeses.map(m=>{const row=CAPT_REP.find(d=>d.mes===m&&d.rep===capFilter);return row?(row[s]||0):0;});
+      return {x:crMeses,y:yv,name:svcLabels[s]||s,type:'bar',
+        marker:{color:svcColors[s]||AZ,line:{width:0}}};
+    });
+  } else {
+    captTraces=allCaptadores.map((rep,i)=>{
+      const yv=crMeses.map(m=>{const row=CAPT_REP.find(d=>d.mes===m&&d.rep===rep);
+        return row?(svcKey?row[svcKey]||0:row.total):0;});
+      return {x:crMeses,y:yv,name:rep,type:'bar',
+        marker:{color:capColors[rep]||PAL[i%PAL.length],line:{width:0}}};
+    });
+  }
+  // Totals annotation per month
+  const captTotals=crMeses.map(m=>captTraces.reduce((a,t)=>{const i=t.x.indexOf(m);return a+(i>=0?t.y[i]:0);},0));
+  const captAnns=crMeses.map((m,i)=>({x:m,y:captTotals[i],text:'<b>'+captTotals[i]+'</b>',showarrow:false,yanchor:'bottom',font:{size:12,color:'#555'}}));
+  pl('chVmCap',captTraces,Object.assign(LAY({},{title:'Unidades'}),{barmode:'group',bargap:.25,bargroupgap:.08}));
+  // Pie: distribución prospectos exitosos por captador
+  const exitPieCR=gF(CAPT_REP);
+  const exitReps=[...new Set(exitPieCR.map(d=>d.rep))];
+  const exitVals=exitReps.map(r=>exitPieCR.filter(d=>d.rep===r).reduce((a,d)=>a+(svcKey?d[svcKey]||0:d.total),0));
+  const capColors2={'MKT CrioCord':AZ,'Milagros H':TQ,'Milagritos':TQ,'Marylin':DO,'Velia':NA,'Adler':VE,'Alejandra':CI};
+  const exitPairs=exitReps.map((r,i)=>({r,v:exitVals[i]})).filter(d=>d.v>0);
+  if(exitPairs.length){
+    pl('chVmExitPie',[{labels:exitPairs.map(d=>d.r),values:exitPairs.map(d=>d.v),
+      type:'pie',hole:.38,pull:.04,
+      marker:{colors:exitPairs.map(d=>capColors2[d.r]||PAL[exitReps.indexOf(d.r)%8]),line:{color:'#fff',width:3}},
+      textinfo:'percent',textposition:'inside',insidetextorientation:'radial',textfont:{size:12}}],
+      Object.assign(LAY({},{}),{showlegend:true,legend:{orientation:'v',x:1.0,y:.5,xanchor:'left',font:{size:11},bgcolor:'rgba(0,0,0,0)'},margin:{t:10,b:10,l:10,r:110}}));
+  }
+
+  // Pie distribución captaciones por captador — filtro por rep
+  const allCapsForPie=capRepFilter?[capRepFilter]:[...new Set(CAPT_REP.map(d=>d.rep))];
+  const pieBase=gF(CAPT_REP);
+  const pieTots=allCapsForPie.map(rep=>pieBase.filter(d=>d.rep===rep).reduce((a,d)=>a+(svcKey?d[svcKey]||0:d.total),0));
+  const pieReps=allCapsForPie.filter((_,i)=>pieTots[i]>0);
+  const pieVals=pieTots.filter(v=>v>0);
+  if(pieReps.length) pl('chVmCapPie',[{labels:pieReps,values:pieVals,type:'pie',hole:.38,pull:.04,
+    marker:{colors:pieReps.map(r=>capColors[r]||PAL[allCaptadores.indexOf(r)%8]),line:{color:'#fff',width:3}},
+    textinfo:'percent',textposition:'inside',insidetextorientation:'radial',textfont:{size:12}}],
+    Object.assign(LAY({},{}),{showlegend:true,legend:{orientation:'v',x:1.0,y:.5,xanchor:'left',font:{size:11},bgcolor:'rgba(0,0,0,0)'},margin:{t:10,b:10,l:10,r:110}}));
+
+  // Visitas VM por rep/mes
+  pl('chVmRep',shReps.map((r,i)=>({x:meses,y:meses.map(m=>{const rw=vmD.find(d=>d.exec===r&&d.mes===m);return rw?rw.visitas:0;}),name:r,type:'bar',marker:{color:capColors[r]||PAL[i%PAL.length],line:{width:0}}})),Object.assign(LAY({},{title:'Visitas'}),{barmode:'group'}));
+
+  // Pie categorías — filtro por rep
+  const vmCDF=catRepFilter?vmCD.filter(d=>d.exec===catRepFilter):vmCD;
+  const cats=[...new Set(vmCDF.map(d=>d.cat))];
+  const catC={Médicos:AZ,Obstetras:TQ,Secretaria:DO};
+  if(cats.length) pl('chVmCat',[{labels:cats,values:cats.map(cat=>vmCDF.filter(d=>d.cat===cat).reduce((a,d)=>a+d.visitas,0)),
+    type:'pie',hole:.35,pull:.04,marker:{colors:cats.map((_,i)=>PAL[i%8]),line:{color:'#fff',width:3}},
+    textinfo:'percent',textposition:'inside',insidetextorientation:'radial',textfont:{size:12}}],
+    Object.assign(LAY({},{}),{showlegend:true,legend:{orientation:'v',x:1.0,y:.5,xanchor:'left',font:{size:11},bgcolor:'rgba(0,0,0,0)'},margin:{t:10,b:10,l:10,r:110}}));
+
+  // Clínicas — ordenar por visitas desc, solo visitas (captaciones por clínica no disponibles)
+  const clinSort=[...CLIN].sort((a,b)=>b.visitas-a.visitas);
+  pl('chVmClin',[{x:clinSort.map(c=>c.visitas),y:clinSort.map(c=>c.clinica+(c.mes!=='ABR'?' ('+c.mes+')':'')),
+    name:'Visitas',type:'bar',orientation:'h',
+    marker:{color:clinSort.map(c=>c.rep==='Milagros'?AZ:c.rep==='Marylin'?DO:c.rep==='Velia'?NA:c.rep==='Adler'?VE:TQ),line:{width:0}},
+    text:clinSort.map(c=>c.rep),textposition:'outside',textfont:{size:9}}],
+    Object.assign(LAY({title:'Visitas'},{automargin:true,tickfont:{size:9}}),{showlegend:false,margin:{l:175,t:10,b:36,r:60}}));
+
+  // Prospectos vs Captaciones + Tasa de Cierre
+  const PD=gF(VM_PROSP);
+  if(PD.length){
+    const pdCaps=[...new Set(PD.map(d=>d.captador))];
+    // Agrupar por captador (sumar meses filtrados)
+    const pdAgg=pdCaps.map(cap=>{
+      const rows=PD.filter(d=>d.captador===cap);
+      const leads=rows.reduce((a,d)=>a+d.leads,0);
+      const caps=rows.reduce((a,d)=>a+d.captaciones,0);
+      const tc=leads>0?Math.round(caps/leads*1000)/10:0;
+      return {cap,leads,caps,tc,canal:rows[0].canal};
+    });
+    const cColors=pdAgg.map(d=>d.canal==='mkt'?AZ:d.canal==='vm'?DO:NA);
+    pl('chVmProsp',[
+      {x:pdAgg.map(d=>d.cap),y:pdAgg.map(d=>d.leads),name:'Leads / Prospectos',type:'bar',marker:{color:'rgba(100,100,100,.35)',line:{width:0}}},
+      {x:pdAgg.map(d=>d.cap),y:pdAgg.map(d=>d.caps),name:'Captaciones Exitosas',type:'bar',marker:{color:cColors,line:{width:0}}}
+    ],Object.assign(LAY({},{title:'Unidades'}),{barmode:'overlay'}));
+    // Tasa de cierre — solo captadores con leads disponibles
+    const tcD=pdAgg.filter(d=>d.leads>0);
+    const tasaSvc=(document.getElementById('fTasaSvc')?.value||'').toLowerCase();
+    const C_CAP2={'MKT CrioCord':AZ,'Milagros H':TQ,'Milagritos':TQ,'Marylin':DO,'Velia':NA,'VM (total)':DO};
+    if(tcD.length){
+      const col=p=>p>=15?VE:p>=7?TQ:p>=3?NA:RO;
+      // If service filter: recalculate TC from CAPT_REP for that service
+      const tcCards=tcD.map(d=>{
+        let caps=d.caps,leads=d.leads,tc=d.tc;
+        if(tasaSvc&&tasaSvc!=='seg_total'){
+          const crRows=gF(CAPT_REP).filter(r=>r.captador===d.cap||r.rep===d.cap);
+          caps=crRows.reduce((a,r)=>a+(r[tasaSvc]||0),0);
+          tc=leads>0?+(caps/leads*100).toFixed(1):0;
+        }
+        return {...d,caps,tc};
+      }).filter(d=>d.leads>0);
+      const svcLbl={ucu:'UCU',tamizaje:'Tamizaje',adn:'ADN',myprenatal:'My Prenatal',seg_total:'Seg. Total'};
+      const lbl=tasaSvc?svcLbl[tasaSvc]||tasaSvc:'Total';
+      const rows=tcCards.map(function(d){
+        var pct=Math.min(d.tc,100);
+        var c=col(d.tc);
+        var badge=d.canal==='mkt'
+          ?'<span style="background:#EFF6FF;color:#1D4ED8;font-size:.63rem;font-weight:700;padding:1px 6px;border-radius:99px">Online</span>'
+          :'<span style="background:#F0FDF4;color:#15803D;font-size:.63rem;font-weight:700;padding:1px 6px;border-radius:99px">Offline</span>';
+        var nameColor=C_CAP2[d.cap]||'#374151';
+        return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #F1F5F9">'
+          +'<div style="width:120px;flex-shrink:0">'
+            +'<div style="font-weight:700;font-size:.82rem;color:'+nameColor+'">'+d.cap+'</div>'
+            +'<div style="margin-top:2px">'+badge+'</div>'
+          +'</div>'
+          +'<div style="flex:1">'
+            +'<div style="background:'+(isDark()?'#30363D':'#F1F5F9')+';border-radius:99px;height:8px;overflow:hidden">'
+              +'<div style="width:'+pct+'%;background:'+c+';height:100%;border-radius:99px"></div>'
+            +'</div>'
+            +'<div style="display:flex;justify-content:space-between;margin-top:3px;font-size:.7rem;color:#6B7280">'
+              +'<span>'+fmt(d.caps)+' '+lbl+' / '+fmt(d.leads)+' prospectos</span>'
+              +'<span style="font-weight:700;color:'+c+'">'+d.tc+'%</span>'
+            +'</div>'
+          +'</div>'
+        +'</div>';
+      }).join('');
+      var el=document.getElementById('vmTasaCards');
+      if(el) el.innerHTML=rows||'<div style="color:#9CA3AF;font-size:.8rem;text-align:center;padding:20px">Sin datos</div>';
+    }
+    // Meta Lima VM
+    const metaLima=META_CAPT.Lima;
+    // Tabla prospectos
+    const gMes=getGMes();
+    const tblPRows=VM_PROSP.filter(d=>!gMes||d.mes===gMes);
+    document.querySelector('#tblProsp tbody').innerHTML=tblPRows.length>0
+      ? tblPRows.map(d=>{
+          const tc=d.leads>0?(d.captaciones/d.leads*100).toFixed(1)+'%':'—';
+          const badge=d.canal==='mkt'
+            ?'<span class="badge-prog">MKT Digital</span>'
+            :'<span class="badge-fin">VM Offline</span>';
+          return `<tr><td>${d.mes}</td><td>${d.captador}</td><td>${badge}</td>`+
+            `<td><b>${fmt(d.leads)}</b></td><td>${fmt(d.captaciones)}</td>`+
+            `<td><b style="color:${parseFloat(tc)>=20?'#2e7d32':'#c62828'}">${tc}</b></td></tr>`;
+        }).join('')
+      : '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:12px">Sin datos de prospectos para el período</td></tr>';
+  }
+
+  // Tabla unificada: CAPT_REP (online MKT + offline VM) con filtro de servicio
+  const tblData=CR;
+  document.querySelector('#tblVm tbody').innerHTML=tblData.length>0
+    ? tblData.map(d=>{
+        const badge=d.canal==='online'
+          ?'<span class="badge-prog">MKT Digital</span>'
+          :'<span class="badge-fin">VM Offline</span>';
+        return `<tr><td>${d.mes}</td><td>${d.rep}</td><td>${badge}</td>`+
+          `<td>${d.ucu}</td><td>${d.tamizaje}</td><td>${d.adn}</td><td>${d.myprenatal}</td>`+
+          `<td><b>${d.total}</b></td></tr>`;
+      }).join('')
+    : '<tr><td colspan="8" style="text-align:center;color:#aaa;padding:12px">Sin datos para el período seleccionado</td></tr>';
+}
+
+// ── MARKETING KPIS ─────────────────────────────────────
+function syncSvcFilter(){
+  // sincroniza los dos selects de servicio en el tab MKT
+  const v1=document.getElementById('fMktSvc')?.value||'';
+  const v2=document.getElementById('fMktSvcH')?.value||'';
+  const v=v1||v2;
+  if(document.getElementById('fMktSvc')) document.getElementById('fMktSvc').value=v;
+  if(document.getElementById('fMktSvcH')) document.getElementById('fMktSvcH').value=v;
+  buildMkt();
+}
+
+function buildMkt(){
+  const D=gF(CONV); if(!D.length)return;
+  const m=D.map(d=>d.mes);
+  const cpl=D.map(d=>d.cpl),cpa=D.map(d=>d.cpa),roas=D.map(d=>d.roas),roi=D.map(d=>d.roi_pct);
+  const cr1=D.map(d=>d.cr1),cr2=D.map(d=>d.cr2),cr3=D.map(d=>d.cr3);
+  const ing=D.map(d=>d.ing),serv=D.map(d=>d.serv),inv=D.map(d=>d.monto),ven=D.map(d=>d.venta);
+  const tInv=inv.reduce((a,b)=>a+b,0),tC=serv.reduce((a,b)=>a+b,0),tL=ing.reduce((a,b)=>a+b,0);
+  document.getElementById('mktLeads').textContent=fmt(tL);
+  document.getElementById('mktClientes').textContent=fmt(tC);
+  document.getElementById('mktCpl').textContent=S(avg(cpl));
+  document.getElementById('mktCpa').textContent=S(avg(cpa));
+  document.getElementById('mktRoas').textContent=fmt(avg(roas),2)+'x';
+  document.getElementById('mktRoi').textContent=fmt(avg(roi),1)+'%';
+  document.getElementById('mktCac').textContent=tC>0?S(tInv/tC):'—';
+  document.getElementById('mktCr3').textContent=fmt(avg(cr3),1)+'%';
+  pl('chMktCpl',[{x:m,y:cpl,name:'CPL',type:'bar',marker:{color:AZ,line:{width:0}}},{x:m,y:cpa,name:'CPA',type:'bar',marker:{color:NA,line:{width:0}}}],Object.assign(LAY({},{title:'S/'}),{barmode:'group'}));
+  pl('chMktRoas',[{x:m,y:roas,name:'ROAS',mode:'lines+markers',line:{color:AZ,width:2},marker:{size:6,color:AZ}},{x:m,y:roi,name:'ROI%',mode:'lines+markers',yaxis:'y2',line:{color:DO,width:2,dash:'dot'},marker:{size:5,color:DO}}],Object.assign(LAY({},{title:'ROAS'}),{yaxis2:{title:'ROI%',overlaying:'y',side:'right',showgrid:false,zeroline:false}}));
+  const preMayo=D.filter(d=>!d.mayo_mode);
+  const aI=avg(ing),aV=preMayo.length?avg(preMayo.map(d=>d.val)):aI,aC=avg(serv);
+  const fY=preMayo.length?['Leads','Prospectos','Clientes']:['Leads','Clientes'];
+  const fX=preMayo.length?[aI,aV,aC]:[aI,aC];
+  const fC=preMayo.length?[AZ,TQ,DO]:[AZ,DO];
+  pl('chMktFunnel',[{type:'funnel',y:fY,x:fX,marker:{color:fC},textinfo:'value+percent initial',textfont:{size:12},connector:{line:{color:'rgba(0,0,0,.1)',width:1}}}],Object.assign(LAY({},{}),{margin:{t:20,b:20,l:110,r:60}}));
+  pl('chMktCr',[{x:m,y:cr1,name:'CR1 L→Prosp',mode:'lines+markers',line:{color:AZ,width:2},marker:{size:6,color:AZ}},{x:m,y:cr2,name:'CR2 Prosp→Cli',mode:'lines+markers',line:{color:TQ,width:2},marker:{size:6,color:TQ}},{x:m,y:cr3,name:'CR3 L→Cli',mode:'lines+markers',line:{color:DO,width:2},marker:{size:6,color:DO}}],LAY({},{title:'%'}));
+  pl('chMktInvVen',[{x:m,y:inv,name:'Inversión',type:'bar',marker:{color:AZ,line:{width:0}}},{x:m,y:ven,name:'Ventas',type:'bar',marker:{color:DO,line:{width:0}}}],Object.assign(LAY({},{title:'S/'}),{barmode:'group'}));
+  const MP=['MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+  document.querySelector('#tblMkt tbody').innerHTML=D.map(d=>`<tr><td>${d.mes}</td><td>${fmt(d.ing)}</td><td>${MP.includes(d.mes)?'<em style="color:#aaa">≡ leads</em>':fmt(d.val)}</td><td>${fmt(d.serv)}</td><td>${S(d.monto,0)}</td><td>${S(d.venta,0)}</td><td>${S(d.cpl)}</td><td>${S(d.cpa)}</td><td>${fmt(d.roas,2)}x</td><td>${fmt(d.roi_pct,1)}%</td><td>${d.serv>0?S(d.monto/d.serv,0):'—'}</td><td>${fmt(d.cr1,1)}%</td><td>${MP.includes(d.mes)?'—':fmt(d.cr2,1)+'%'}</td><td>${fmt(d.cr3,1)}%</td></tr>`).join('');
+
+  // ── Captaciones por servicio (desde CAPT_REP) con filtro ──
+  const svcKey=(document.getElementById('fMktSvc')?.value||'').toLowerCase();
+  const CR=gF(CAPT_REP);
+  const selM2=getSelMeses();const crMeses=[...new Set(CAPT_REP.map(d=>d.mes))].filter(mes=>!selM2.length||selM2.includes(mes));
+  const svcs=['ucu','tamizaje','adn','myprenatal'];
+  const svcLbl={ucu:'UCU',tamizaje:'Tamizaje',adn:'ADN',myprenatal:'My Prenatal'};
+  const svcClr={ucu:AZ,tamizaje:NA,adn:TQ,myprenatal:PU};
+  if(CR.length){
+    const captTraces=svcKey
+      ? [{x:crMeses,y:crMeses.map(mes=>CR.filter(d=>d.mes===mes).reduce((a,d)=>a+(d[svcKey]||0),0)),name:svcLbl[svcKey]||svcKey,type:'bar',marker:{color:svcClr[svcKey]||AZ,line:{width:0}}}]
+      : svcs.map(s=>({x:crMeses,y:crMeses.map(mes=>CR.filter(d=>d.mes===mes).reduce((a,d)=>a+(d[s]||0),0)),name:svcLbl[s],type:'bar',marker:{color:svcClr[s],line:{width:0}}}));
+    const mktCaptTots=captTraces[0]?.x.map((_,i)=>captTraces.reduce((a,t)=>a+(t.y[i]||0),0))||[];
+    const mktCaptAnns=(captTraces[0]?.x||[]).map((m,i)=>({x:m,y:mktCaptTots[i],text:'<b>'+mktCaptTots[i]+'</b>',showarrow:false,yanchor:'bottom',font:{size:12,color:'#555'}}));
+    pl('chMktCaptSvc',captTraces,Object.assign(LAY({},{title:'Unidades'}),{barmode:'group',bargap:.25,bargroupgap:.08}));
+    const pieSvcs=svcKey?[svcKey]:svcs;
+    const pieTots=pieSvcs.map(s=>CR.reduce((a,d)=>a+(d[s]||0),0));
+    pl('chMktCaptPie',[{labels:pieSvcs.map(s=>svcLbl[s]),values:pieTots,type:'pie',hole:.35,pull:.04,marker:{colors:pieSvcs.map(s=>svcClr[s]),line:{color:'#fff',width:3}},textinfo:'percent',textposition:'inside',insidetextorientation:'radial',textfont:{size:12}}],Object.assign(LAY({},{}),{showlegend:true,legend:{orientation:'v',x:1.0,y:.5,xanchor:'left',font:{size:11},bgcolor:'rgba(0,0,0,0)'},margin:{t:10,b:10,l:10,r:110}}));
+  }
+}
+
+// ── MIX ────────────────────────────────────────────────
+function buildMix(){
+  const MX=gF(MIX); if(!MX.length)return;
+  const mixSvcBar=(document.getElementById('fMixBarSvc')?.value||'').toLowerCase();
+  const mixSvcOv=(document.getElementById('fMixOvSvc')?.value||'').toLowerCase();
+  const meses=[...new Set(MX.map(d=>d.mes))];
+  const svcs=['UCU','ADN','Tamizaje','MyPrenatal','Seguridad Total'];
+  const mxM=meses.map(m=>{
+    const row={mes:m};
+    svcs.forEach(s=>{const f=MX.find(d=>d.mes===m&&(d.servicio===s||d.servicio.includes(s.split(' ')[0])));row[s]=f?f.servicios:0;});
+    return row;
+  });
+  const filtSvcs=mixSvcBar?svcs.filter(s=>s.toLowerCase().includes(mixSvcBar)||mixSvcBar.includes(s.toLowerCase().replace(' total','').replace('/ cordones','').replace('ucucordones','ucu'))):svcs;
+  const svcMap={ucu:['UCU'],tamizaje:['Tamizaje'],adn:['ADN'],myprenatal:['MyPrenatal','My Prenatal'],seg_total:['Seguridad Total']};
+  const activeSvcs=mixSvcBar?svcs.filter(s=>{const k=mixSvcBar;
+    return (k==='ucu'&&s==='UCU')||(k==='tamizaje'&&s==='Tamizaje')||(k==='adn'&&s==='ADN')||
+           (k==='myprenatal'&&(s==='MyPrenatal'||s==='My Prenatal'))||(k==='seg_total'&&s==='Seguridad Total');
+  }) : svcs;
+  const tots=activeSvcs.map(s=>mxM.reduce((a,r)=>a+(r[s]||0),0));
+  pl('chMixPie',[{labels:activeSvcs,values:tots,type:'pie',hole:.35,pull:.04,marker:{colors:svcs.map(s=>C_SVC[s]),line:{color:'#fff',width:3}},textinfo:'percent',textposition:'inside',insidetextorientation:'radial',textfont:{size:12}}],Object.assign(LAY({},{}),{showlegend:true,legend:{orientation:'v',x:1.0,y:.5,xanchor:'left',font:{size:11},bgcolor:'rgba(0,0,0,0)'},margin:{t:10,b:10,l:10,r:110}}));
+  const mixTotByMes=meses.map(m=>svcs.reduce((a,s)=>a+(mxM.find(r=>r.mes===m)?.[s]||0),0));
+  const mixAnns=meses.map((m,i)=>({x:m,y:mixTotByMes[i],text:'<b>'+mixTotByMes[i]+'</b>',showarrow:false,yanchor:'bottom',font:{size:12,color:'#555'}}));
+  pl('chMixBar',activeSvcs.map(s=>{const yv=mxM.map(r=>r[s]||0);return {x:meses,y:yv,name:s,type:'bar',
+    marker:{color:C_SVC[s],line:{width:0}}};}),Object.assign(LAY({},{title:'Unidades'}),{barmode:'stack',annotations:mixAnns}));
+  const CR_MX=gF(CAPT_REP);
+  const ovMeses=[...new Set(CR_MX.map(d=>d.mes))];
+  if(ovMeses.length){
+    const onlineU=ovMeses.map(m=>CR_MX.filter(d=>d.mes===m&&d.canal==='online').reduce((a,d)=>a+d.total,0));
+    const offlineU=ovMeses.map(m=>CR_MX.filter(d=>d.mes===m&&d.canal==='offline').reduce((a,d)=>a+d.total,0));
+    const totU=ovMeses.map((_,i)=>onlineU[i]+offlineU[i]);
+    const onPct=ovMeses.map((_,i)=>totU[i]?Math.round(onlineU[i]/totU[i]*100):0);
+    const offPct=ovMeses.map((_,i)=>totU[i]?Math.round(offlineU[i]/totU[i]*100):0);
+    pl('chMixOV',[
+      {x:ovMeses,y:onlineU,name:'Online / Digital',type:'bar',marker:{color:AZ},
+       text:onPct.map(p=>p+'%'),textposition:'inside',insidetextanchor:'middle',textfont:{color:'#fff',size:10}},
+      {x:ovMeses,y:offlineU,name:'Offline / VM',type:'bar',marker:{color:DO},
+       text:offPct.map(p=>p+'%'),textposition:'inside',insidetextanchor:'middle',textfont:{color:'#fff',size:10}}
+    ],Object.assign(LAY({},{title:'Unidades'}),{barmode:'stack'}));
+  }
+  document.querySelector('#tblMix tbody').innerHTML=mxM.map(r=>{const t=svcs.reduce((a,s)=>a+(r[s]||0),0);return `<tr><td>${r.mes}</td>${svcs.map(s=>`<td>${fmt(r[s]||0)}</td>`).join('')}<td><b>${fmt(t)}</b></td></tr>`;}).join('');
+}
+
+// ── PRESUPUESTO ────────────────────────────────────────
+function buildPpto(){
+  const PP=gF(PPTO); if(!PP.length)return;
+  const m=PP.map(d=>d.mes),plan=PP.map(d=>d.ppto_plan),promo=PP.map(d=>d.gastado),total=PP.map(d=>d.gasto_total),cumpl=PP.map(d=>d.cumpl_pct);
+  const tP=plan.reduce((a,b)=>a+b,0),tPr=promo.reduce((a,b)=>a+b,0),tT=total.reduce((a,b)=>a+b,0);
+  const tC=tP>0?Math.round(tT/tP*100):0;
+  document.getElementById('ppTotPlan').textContent=S(tP,0);
+  document.getElementById('ppTotPromo').textContent=S(tPr,0);
+  document.getElementById('ppTotGasto').textContent=S(tT,0);
+  document.getElementById('ppCumpl').textContent=tC+'%';
+  pl('chPpComp',[
+    {x:m,y:plan,name:'Presupuesto Plan',type:'bar',marker:{color:'rgba(11,83,148,.35)',line:{color:AZ,width:2}}},
+    {x:m,y:promo,name:'Gasto Promo',type:'bar',marker:{color:TQ}},
+    {x:m,y:total,name:'Gasto Total',type:'bar',marker:{color:DO}}
+  ],Object.assign(LAY({},{title:'S/'}),{barmode:'group',
+    annotations:PP.map((d,i)=>({x:m[i],y:total[i]+400,text:d.cumpl_pct+'%',showarrow:false,font:{size:10,color:cumpl[i]>=100?VE:cumpl[i]>=75?NA:RO}}))}));
+  pl('chPpCumpl',[{x:m,y:cumpl,type:'bar',marker:{color:cumpl.map(c=>c>=100?VE:c>=75?NA:RO)},text:cumpl.map(c=>c+'%'),textposition:'outside'}],LAY({},{title:'%',range:[0,Math.max(130,...cumpl)+15]}));
+  const cats=[...new Set(HIST.map(d=>d.categoria))];
+  const catC={Digital:AZ,Eventos:DO,Administrativo:TQ};
+  const HH=gF(HIST.map(d=>({...d})));
+  pl('chPpCat',[{labels:cats,values:cats.map(c=>HH.filter(d=>d.categoria===c).reduce((a,d)=>a+d.monto,0)),type:'pie',hole:.35,pull:.04,marker:{colors:cats.map(c=>catC[c]||PAL[0]),line:{color:'#fff',width:3}},textinfo:'percent',textposition:'inside',insidetextorientation:'radial',textfont:{size:12}}],Object.assign(LAY({},{}),{showlegend:true,legend:{orientation:'v',x:1.0,y:.5,xanchor:'left',font:{size:11},bgcolor:'rgba(0,0,0,0)'},margin:{t:10,b:10,l:10,r:110}}));
+  document.getElementById('ppPrevistoDiv').innerHTML=`<div style="font-size:.83rem"><div style="font-weight:700;color:var(--azul);margin-bottom:6px">Próximo mes estimado (MAY)</div>${[['Meta Ads / Google Ads','S/ 7,500'],['Producción contenido','S/ 1,924'],['Eventos / Activaciones','S/ 3,500'],['Herramientas / Admin','S/ 1,400']].map(([l,v])=>`<div style="display:flex;justify-content:space-between;border-bottom:1px solid #e0eaf5;padding:4px 0"><span>${l}</span><strong>${v}</strong></div>`).join('')}<div style="display:flex;justify-content:space-between;padding:6px 0;font-weight:800;color:var(--azul)"><span>TOTAL PREVISTO</span><span>S/ 14,324</span></div></div>`;
+  renderHist();
+  document.querySelector('#tblPpto tbody').innerHTML=PP.map((d,i)=>`<tr><td>${d.mes}</td><td>${S(plan[i],0)}</td><td>${S(promo[i],0)}</td><td>${S(total[i],0)}</td><td style="font-weight:700;color:${cumpl[i]>=100?VE:cumpl[i]>=75?NA:RO}">${cumpl[i]}%</td></tr>`).join('');
+}
+
+function renderHist(){
+  const mes=document.getElementById('fHistMes').value,cat=document.getElementById('fHistCat').value;
+  let rows=HIST;
+  if(mes)rows=rows.filter(d=>d.mes===mes);
+  if(cat)rows=rows.filter(d=>d.categoria===cat);
+  document.querySelector('#tblHist tbody').innerHTML=rows.map(d=>`<tr><td>${d.fecha}</td><td>${d.mes}</td><td>${d.categoria}</td><td>${d.desc}</td><td style="text-align:right">${S(d.monto,0)}</td></tr>`).join('');
+  document.getElementById('totalHist').textContent='Total filtrado: '+S(rows.reduce((a,d)=>a+d.monto,0),0);
+}
+
+// ── VENDEDORES ─────────────────────────────────────────
+function buildVend(){
+  const ef=document.getElementById('fVendExec')?.value||'';
+  const vendUcuSvc=(document.getElementById('fVendUcuSvc')?.value||'').toLowerCase();
+  const vendServSvc=(document.getElementById('fVendServSvc')?.value||'').toLowerCase();
+  const vendD=gF(VEND).filter(d=>!ef||d.exec===ef);
+  const allExecs=[...new Set(VEND.map(d=>d.exec))];
+  const shExecs=ef?[ef]:allExecs.filter(e=>vendD.some(d=>d.exec===e));
+  const meses=[...new Set(vendD.length?vendD.map(d=>d.mes):VEND.map(d=>d.mes))];
+  const nMeses=Math.max(meses.length,1);
+  const periodoLbl=getGMes()?getGMes():(meses.length===1?meses[0]:'Acum. '+meses[0]+'–'+meses[meses.length-1]);
+
+  // ── KPI boxes — cumplimiento por TODOS los servicios vs meta del período ──
+  document.getElementById('kpiVend').innerHTML=shExecs.map(e=>{
+    const rows=vendD.filter(d=>d.exec===e);
+    const zona=(VEND.find(d=>d.exec===e)?.zona)||'Lima';
+    const meta=(META_VEND[zona]||META_VEND.Lima);
+    const tU=rows.reduce((a,d)=>a+d.ucu,0);
+    const tA=rows.reduce((a,d)=>a+d.adn,0);
+    const tT=rows.reduce((a,d)=>a+d.tamizaje,0);
+    const tM=rows.reduce((a,d)=>a+d.myprenatal,0);
+    // Meta del período = meta mensual × número de meses filtrados
+    const mU=meta.ucu*nMeses, mA=meta.adn*nMeses, mTa=meta.tamizaje*nMeses, mMp=meta.myprenatal*nMeses;
+    const pU=mU>0?Math.round(tU/mU*100):0;
+    const pA=mA>0?Math.round(tA/mA*100):0;
+    const pTa=mTa>0?Math.round(tT/mTa*100):0;
+    const pMp=mMp>0?Math.round(tM/mMp*100):0;
+    const col=(p)=>p>=100?VE:p>=70?NA:RO;
+    const bar=(p)=>`<div style="background:${isDark()?'#30363D':'#eee'};border-radius:3px;overflow:hidden;height:5px;margin:2px 0"><div style="width:${Math.min(p,100)}%;background:${col(p)};height:100%"></div></div>`;
+    const sRow=(lbl,tot,meta,p)=>`<div style="display:flex;justify-content:space-between;align-items:center;font-size:.72rem"><span style="color:${isDark()?'#8B949E':'#555'}">${lbl}</span><span style="font-weight:700;color:${col(p)}">${tot}/${meta} <small>(${p}%)</small></span></div>${bar(p)}`;
+    return `<div class="col-md-3 col-6"><div class="kpi-box" style="border-top:3px solid ${C_VEND[e]||AZ};text-align:left">
+      <div style="font-weight:700;font-size:.85rem;color:${C_VEND[e]||AZ};margin-bottom:2px">${e}</div>
+      <div style="font-size:.68rem;color:#888;margin-bottom:6px">${zona} · ${periodoLbl}</div>
+      ${sRow('UCU / Cordones',tU,mU,pU)}
+      ${sRow('ADN',tA,mA,pA)}
+      ${sRow('Tamizaje',tT,mTa,pTa)}
+      ${sRow('My Prenatal',tM,mMp,pMp)}
+    </div></div>`;
+  }).join('');
+
+  // ── Gráfico UCU por mes con línea meta mensual ──
+  const metaExec=ef?VEND.find(d=>d.exec===ef)?.zona||'Lima':null;
+  const metaUcu=metaExec?(META_VEND[metaExec]||META_VEND.Lima).ucu:null;
+  const shps=metaUcu?[{type:'line',x0:-.5,x1:meses.length-.5,xref:'x',y0:metaUcu,y1:metaUcu,yref:'y',line:{color:RO,width:1.5,dash:'dash'}}]:[];
+  const anns=metaUcu?[{x:meses[0],y:metaUcu+1,text:'Meta/mes: '+metaUcu,showarrow:false,font:{size:9,color:RO},xanchor:'left'}]:[];
+  // Unidades por servicio por asesor (agrupado)
+  const allSvcKeys2=['ucu','adn','tamizaje','myprenatal','seg_total'];
+  const svcKeys2=vendUcuSvc?allSvcKeys2.filter(s=>s===vendUcuSvc||vendUcuSvc==='seg_total'&&s==='seg_total'):allSvcKeys2;
+  const svcLabels2=['UCU / Cordones','ADN','Tamizaje','My Prenatal','Seg. Total'];
+  const svcColors2=[AZ,TQ,NA,PU,RO];
+  pl('chVendUcu',svcKeys2.map((s,i)=>({
+    x:shExecs,
+    y:shExecs.map(e=>vendD.filter(d=>d.exec===e).reduce((a,d)=>a+(d[s]||0),0)),
+    name:svcLabels2[i],type:'bar',
+    marker:{color:svcColors2[i],line:{width:0}}
+  })),Object.assign(LAY({},{title:'Unidades'}),{barmode:'group',bargap:.25,bargroupgap:.08}));
+
+  // ── Servicios acumulados por asesor ──
+  const allSK=['ucu','adn','tamizaje','myprenatal','seg_total'],allSL=['UCU','ADN','Tamizaje','MyPrenatal','Seg.Total'],allSC=[AZ,TQ,NA,PU,RO];
+  const sKidx=vendServSvc?[allSK.indexOf(vendServSvc)].filter(i=>i>=0):[0,1,2,3,4];
+  const sK=sKidx.map(i=>allSK[i]),sL=sKidx.map(i=>allSL[i]),sC=sKidx.map(i=>allSC[i]);
+  const vendServTots=shExecs.map(e=>sK.reduce((a,s)=>a+vendD.filter(d=>d.exec===e).reduce((a2,d)=>a2+(d[s]||0),0),0));
+  const vendServAnns=shExecs.map((e,i)=>({x:e,y:vendServTots[i],text:'<b>'+vendServTots[i]+'</b>',showarrow:false,yanchor:'bottom',font:{size:12,color:'#555'}}));
+  pl('chVendServ',sK.map((s,i)=>{const yv=shExecs.map(e=>vendD.filter(d=>d.exec===e).reduce((a,d)=>a+(d[s]||0),0));
+    return {x:shExecs,y:yv,name:sL[i],type:'bar',
+      marker:{color:sC[i],line:{width:0}}};}),Object.assign(LAY({},{title:'Unidades'}),{barmode:'stack',annotations:vendServAnns}));
+
+  // ── Leads por asesor/mes ──
+  pl('chVendProd',shExecs.map(e=>({x:meses,y:meses.map(m=>{const r=vendD.find(d=>d.exec===e&&d.mes===m);return r?r.leads:0;}),name:e,type:'bar',marker:{color:C_VEND[e]||PAL[allExecs.indexOf(e)%8],line:{width:0}}})),Object.assign(LAY({},{title:'Leads'}),{barmode:'group'}));
+
+  // ── Cumplimiento vs meta del período filtrado (no hardcoded Q2) ──
+  const avObj=shExecs.map(e=>{
+    const z=VEND.find(d=>d.exec===e)?.zona||'Lima';
+    const metaM=(META_VEND[z]||META_VEND.Lima);
+    // Totales por servicio en el período filtrado
+    const dRows=vendD.filter(d=>d.exec===e);
+    const totU=dRows.reduce((a,d)=>a+d.ucu,0);
+    const totA=dRows.reduce((a,d)=>a+d.adn,0);
+    const totT=dRows.reduce((a,d)=>a+d.tamizaje,0);
+    const totM=dRows.reduce((a,d)=>a+d.myprenatal,0);
+    // Meta del período
+    const mU2=metaM.ucu*nMeses, mA2=metaM.adn*nMeses, mT2=metaM.tamizaje*nMeses, mMp2=metaM.myprenatal*nMeses;
+    const pU2=mU2>0?Math.round(totU/mU2*100):0;
+    const pA2=mA2>0?Math.round(totA/mA2*100):0;
+    const pT2=mT2>0?Math.round(totT/mT2*100):0;
+    const pMp2=mMp2>0?Math.round(totM/mMp2*100):0;
+    const avgPct=Math.round((pU2+pA2+pT2+pMp2)/4);
+    return {e,pU:pU2,pA:pA2,pT:pT2,pMp:pMp2,avg:avgPct,
+      lblU:`${totU}/${mU2}`,lblA:`${totA}/${mA2}`,lblT:`${totT}/${mT2}`,lblMp:`${totM}/${mMp2}`};
+  });
+  const maxPct=Math.max(130,...avObj.map(d=>Math.max(d.pU,d.pA,d.pT,d.pMp)));
+  pl('chVendObj',[
+    {x:shExecs,y:avObj.map(d=>d.pU),name:'UCU',type:'bar',marker:{color:AZ,line:{width:0}},
+     text:avObj.map(d=>d.pU+'%'),textposition:'outside',customdata:avObj.map(d=>d.lblU),
+     hovertemplate:'%{x} — UCU<br>%{text} (%{customdata})<extra></extra>'},
+    {x:shExecs,y:avObj.map(d=>d.pA),name:'ADN',type:'bar',marker:{color:TQ,line:{width:0}},
+     text:avObj.map(d=>d.pA+'%'),textposition:'outside'},
+    {x:shExecs,y:avObj.map(d=>d.pT),name:'Tamizaje',type:'bar',marker:{color:NA,line:{width:0}},
+     text:avObj.map(d=>d.pT+'%'),textposition:'outside'},
+    {x:shExecs,y:avObj.map(d=>d.pMp),name:'My Prenatal',type:'bar',marker:{color:PU,line:{width:0}},
+     text:avObj.map(d=>d.pMp+'%'),textposition:'outside'},
+  ],Object.assign(LAY({},{title:'% vs meta',range:[0,maxPct+20]}),{barmode:'group',
+    shapes:[{type:'line',x0:-.5,x1:shExecs.length-.5,xref:'x',y0:100,y1:100,yref:'y',line:{color:'rgba(0,0,0,.3)',width:1,dash:'dot'}}],
+    annotations:[{x:shExecs[0],y:102,text:'100% meta',showarrow:false,font:{size:9,color:'#888'},xanchor:'left'}]
+  }));
+
+  const MP=['MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+  document.querySelector('#tblVend tbody').innerHTML=vendD.map(d=>`<tr><td>${d.mes}</td><td>${d.exec}</td><td>${d.zona}</td><td><b>${d.ucu}</b></td><td>${d.adn}</td><td>${d.tamizaje}</td><td>${d.myprenatal}</td><td>${d.seg_total||0}</td><td>${fmt(d.leads)}</td><td>${MP.includes(d.mes)?'<em style="color:#aaa">—</em>':fmt(d.validos)}</td></tr>`).join('');
+}
+
+
+function renderCron(){
+  const mes=document.getElementById('fCronMes').value,can=document.getElementById('fCronCanal').value;
+  let rows=[...COMMS];
+  if(mes)rows=rows.filter(d=>d.mes===mes);
+  if(can)rows=rows.filter(d=>d.canal===can);
+  document.querySelector('#tblCronComms tbody').innerHTML=rows.map(d=>`<tr class="${d.hecho?'hecho-si':''}"><td>${d.fecha}</td><td>${d.mes}</td><td>${d.canal}</td><td>${d.audiencia}</td><td>${d.tipo}</td><td>${d.tema}</td><td>${d.hecho?'<span class="badge-fin">✓ Hecho</span>':'<span class="badge-pend">Pendiente</span>'}</td></tr>`).join('');
+  const MS=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+  document.querySelector('#tblCronAct tbody').innerHTML=ACT.map(a=>`<tr class="${a.hecho?'hecho-si':''}"><td>${a.actividad}</td><td>${a.cat}</td>${MS.map(m=>`<td style="text-align:center;${a[m]&&a[m]!=='—'?'font-weight:700':'color:#ccc'}">${a[m]||'—'}</td>`).join('')}</tr>`).join('');
+}
+
+// ── PROYECTOS ──────────────────────────────────────────
+let proyectos=[];
+const LS='criocord_proy_2026v4';
+function loadProy(){try{const s=localStorage.getItem(LS);proyectos=s?JSON.parse(s):[...PROY_DEF];}catch(e){proyectos=[...PROY_DEF];}}
+function guardarProy(){localStorage.setItem(LS,JSON.stringify(proyectos));const b=document.querySelector('[onclick="guardarProy()"]');b.innerHTML='✓ Guardado';b.style.background=VE;setTimeout(()=>{b.innerHTML='<i class="bi bi-floppy"></i> Guardar';b.style.background='';},2200);}
+function renderProy(){
+  const f=document.getElementById('fProyEst').value;
+  const rows=f?proyectos.filter(p=>p.estado===f):proyectos;
+  const BD={FINALIZADO:'badge-fin',EN_PROGRESO:'badge-prog',DETENIDO:'badge-det',PENDIENTE:'badge-pend'};
+  const DD={FINALIZADO:'dot-v',EN_PROGRESO:'dot-a',DETENIDO:'dot-r',PENDIENTE:''};
+  document.querySelector('#tblProy tbody').innerHTML=rows.map(p=>{const ri=proyectos.indexOf(p);
+    return `<tr><td>${p.id}</td><td>${p.nombre}</td><td>${p.resp}</td><td>${p.inicio}</td><td>${p.fin}</td><td><span class="dot ${DD[p.estado]||''}"></span><span class="${BD[p.estado]||'badge-pend'}">${p.estado.replace('_',' ')}</span></td><td style="max-width:180px;white-space:normal;font-size:.73rem">${p.notas||''}</td><td><select style="font-size:.72rem;padding:2px 4px;border:1px solid #b8d0ea;border-radius:4px" onchange="cambiarEstado(${ri},this.value)">${['PENDIENTE','EN_PROGRESO','FINALIZADO','DETENIDO'].map(s=>`<option${p.estado===s?' selected':''}>${s}</option>`).join('')}</select><button class="btn-del ms-1" onclick="eliminarProy(${ri})"><i class="bi bi-trash"></i></button></td></tr>`;
+  }).join('');
+}
+function cambiarEstado(i,v){proyectos[i].estado=v;guardarProy();renderProy();}
+function eliminarProy(i){if(confirm('¿Eliminar?')){proyectos.splice(i,1);guardarProy();renderProy();}}
+function agregarProy(){const nom=document.getElementById('pNom').value.trim();if(!nom){alert('Ingresa un nombre.');return;}proyectos.push({id:'P'+String(proyectos.length+1).padStart(3,'0'),nombre:nom,resp:document.getElementById('pResp').value,inicio:document.getElementById('pIni').value,fin:document.getElementById('pFin').value,estado:document.getElementById('pEst').value,notas:document.getElementById('pNot').value});guardarProy();renderProy();document.getElementById('pNom').value='';document.getElementById('pNot').value='';}
+
+// ── GLOSARIO ───────────────────────────────────────────
+function buildGlosario(){
+  document.querySelector('#tblGlos tbody').innerHTML=[
+    ['Lead','Persona que ha mostrado interés en los servicios CrioCord (desde mayo 2026 = única métrica de prospección)'],
+    ['Prospecto Válido','Lead que cumple criterios de elegibilidad (métrica activa ENE–ABR 2026)'],
+    ['Cliente','Persona que ha contratado un servicio CrioCord'],
+    ['CPL','Costo Por Lead = Inversión ÷ N° Leads'],
+    ['CPA','Costo Por Adquisición = Inversión ÷ N° Nuevos Clientes'],
+    ['CAC','Costo Adquisición Cliente = Inversión TOTAL ÷ N° Clientes'],
+    ['ROI','Retorno Inversión = (Ganancia − Inversión) ÷ Inversión × 100'],
+    ['ROAS','Ret. Inv. Publicitaria = Ventas ÷ Inversión Publicitaria'],
+    ['CR1','Lead → Prospecto × 100 (solo ENE–ABR)'],
+    ['CR2','Prospecto → Cliente × 100 (solo ENE–ABR)'],
+    ['CR3','Lead → Cliente × 100 (métrica principal desde mayo)'],
+    ['UCU','Unidad Criopreservación Umbilical'],
+    ['ADN','Perfil genético del recién nacido según indicación médica (antes: ADN Newborn)'],
+    ['Tamizaje','Panel de detección de enfermedades metabólicas al nacer'],
+    ['MyPrenatal','Análisis genético prenatal no invasivo — herramienta de apoyo según indicación médica'],
+    ['Seguridad Total','Combo CrioCord de servicios múltiples'],
+    ['Potencial de Uso','Profesionales de salud con potencial de incorporar CrioCord según indicación médica'],
+    ['Digital / Online','Contratos captados por MKT, Comercial y Anualidades'],
+    ['Offline / VM','Contratos captados directamente por representantes de Visita Médica'],
+  ].map(([t,d])=>`<tr><td><strong>${t}</strong></td><td>${d}</td></tr>`).join('');
+}
+
+// ── EXPORT ─────────────────────────────────────────────
+function exportTab(tab){
+  const tmap={resumen:'#kpiResumen',vm:'#tblVm',mkt:'#tblMkt',mix:'#tblMix',ppto:'#tblPpto',vend:'#tblVend',cron:'#tblCronComms',proy:'#tblProy',glos:'#tblGlos'};
+  const el=document.querySelector(tmap[tab]);
+  if(!el){alert('No hay tabla exportable.');return;}
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.table_to_sheet(el),tab.toUpperCase());
+  XLSX.writeFile(wb,'CrioCord_'+tab+'_2026.xlsx');
+}
+
+// ── DARK MODE ──────────────────────────────────────────
+function toggleDark(){
+  var html=document.getElementById('htmlRoot');
+  var wasDark=html.getAttribute('data-theme')==='dark';
+  if(wasDark){
+    html.removeAttribute('data-theme');
+    document.getElementById('darkIcon').textContent='🌙';
+    document.getElementById('darkLbl').textContent='Modo oscuro';
+    try{localStorage.setItem('criocord-theme','light');}catch(e){}
+  } else {
+    html.setAttribute('data-theme','dark');
+    document.getElementById('darkIcon').textContent='☀️';
+    document.getElementById('darkLbl').textContent='Modo claro';
+    try{localStorage.setItem('criocord-theme','dark');}catch(e){}
+  }
+  // Re-render everything with correct theme
+  setTimeout(function(){
+    try{buildScorecard();}catch(e){}
+    try{buildResumen();}catch(e){}
+    try{buildVM();}catch(e){}
+    try{buildMkt();}catch(e){}
+    try{buildMix();}catch(e){}
+    try{buildPpto();}catch(e){}
+    try{buildVend();}catch(e){}
+  },80);
+}
+(function(){
+  try{
+    var t=localStorage.getItem('criocord-theme');
+    if(t==='dark'){
+      var h=document.getElementById('htmlRoot');
+      if(h){h.setAttribute('data-theme','dark');}
+      var ic=document.getElementById('darkIcon');
+      var lb=document.getElementById('darkLbl');
+      if(ic)ic.textContent='☀️';
+      if(lb)lb.textContent='Modo claro';
+    }
+  }catch(e){}
+})();
+
+// ── INIT ───────────────────────────────────────────────
+window.onload=function(){
+  buildScorecard();buildResumen();buildVM();buildMkt();buildMix();buildPpto();buildVend();
+  initCollapsibleTables();
+  renderCron();loadProy();renderProy();buildGlosario();
+  document.querySelectorAll('a[data-bs-toggle="tab"]').forEach(el=>{
+    el.addEventListener('shown.bs.tab',()=>{
+      document.querySelectorAll('.js-plotly-plot').forEach(div=>Plotly.Plots.resize(div));
+    });
+  });
+};
+</script>
+</body>
+</html>
+"""
+
+out = HTML_TMPL + HTML_JS
+for k, v in J.items():
+    out = out.replace(f'___{k}___', v)
+out = out.replace('___NOW___', NOW)
+with open(OUTPUT, 'w', encoding='utf-8') as f:
+    f.write(out)
+print(f"  Dashboard v4 generado: {OUTPUT}\n  Tamaño: {os.path.getsize(OUTPUT)//1024} KB")
