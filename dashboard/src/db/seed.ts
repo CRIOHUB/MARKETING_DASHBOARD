@@ -1,4 +1,3 @@
-import 'dotenv/config'
 import { db } from './index'
 import * as schema from './schema'
 
@@ -460,7 +459,10 @@ export async function seed() {
   console.log('✓ vm_prospeccion')
 
   console.log('\nSeed complete.')
-  process.exit(0)
 }
 
-seed().catch(err => { console.error(err); process.exit(1) })
+// Only auto-run when executed directly (e.g. `tsx src/db/seed.ts`),
+// NOT when imported by the /api/seed route.
+if (process.argv[1]?.replace(/\\/g, '/').endsWith('/db/seed.ts')) {
+  seed().then(() => process.exit(0)).catch(err => { console.error(err); process.exit(1) })
+}

@@ -169,7 +169,7 @@ export default async function KpisPage({ searchParams }: PageProps) {
               {sec.kpis.map(kpi => {
                 const real = ytd(kpi)
                 const activeSC = scMeses.filter(m => activeMeses.includes(m))
-                const metaYtd  = (kpi.fmt === 'pct' || kpi.fmt === 'soles' || kpi.fmt === 'mxn')
+                const metaYtd  = (kpi.fmt === 'pct' || kpi.fmt === 'soles')
                   ? kpi.meta_fy
                   : sum(activeSC.map(m => kpi.meta[scMeses.indexOf(m)]).filter(v => v >= 0))
                 const pctVal   = metaYtd ? (kpi.fmt === 'soles' ? metaYtd / real : real / metaYtd) : 0
@@ -183,11 +183,11 @@ export default async function KpisPage({ searchParams }: PageProps) {
                   }}>
                     <div className="eyebrow" style={{ marginBottom: 6 }}>{kpi.label}</div>
                     <div style={{ fontSize: 22, fontWeight: 800, color: clr }}>
-                      {'fmt' in kpi ? (() => {
+                      {(() => {
                         if (kpi.fmt === 'pct') return pct(real * 100)
-                        if (kpi.fmt === 'soles' || kpi.fmt === 'mxn') return soles(real, 0)
+                        if (kpi.fmt === 'soles') return soles(real, 0)
                         return real >= 10000 ? (real / 1000).toFixed(1) + 'K' : fmt(Math.round(real))
-                      })() : '—'}
+                      })()}
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--color-muted)', marginTop: 4 }}>
                       {pctVal ? `${Math.round(pctVal * 100)}% de meta` : 'Sin meta'}
