@@ -6,6 +6,8 @@ import { StatusDot } from '@/components/ui/badge'
 import { createProject, deleteProject } from '@/actions/proyectos'
 import type { Proyecto } from '@/db/schema'
 
+export const dynamic = 'force-dynamic'
+
 async function getProyectos(): Promise<Proyecto[]> {
   if (!process.env.DATABASE_URL) return []
   try {

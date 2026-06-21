@@ -4,6 +4,8 @@ import { GlassCard } from '@/components/ui/glass-card'
 import { KpiBox } from '@/components/ui/kpi-box'
 import { ALL_MESES } from '@/lib/constants'
 
+export const dynamic = 'force-dynamic'
+
 export default async function CalendarioPage() {
   let acts: any[] = []
   try {
