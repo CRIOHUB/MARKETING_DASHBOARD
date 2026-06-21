@@ -357,7 +357,7 @@ const VM_PROSP = [
 
 // ─── Seed function ────────────────────────────────────────────────────────────
 
-async function seed() {
+export async function seed() {
   console.log('Seeding database...')
 
   await db.delete(schema.conversionData)
