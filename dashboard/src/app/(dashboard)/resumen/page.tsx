@@ -7,15 +7,16 @@ import { KpiBox } from '@/components/ui/kpi-box'
 import { MonthFilter } from '@/components/ui/month-filter'
 import { PlotlyChart } from '@/components/charts/plotly-chart'
 import { soles, fmt, parseMeses, sum, avg } from '@/lib/utils'
-import { CHART_COLORS } from '@/lib/constants'
+import { CHART_COLORS, SERVICIOS } from '@/lib/constants'
+import { ServiceFilter } from '@/components/ui/service-filter'
 
-const SERVICIOS = ['UCU', 'ADN', 'Tamizaje', 'MyPrenatal', 'Seguridad Total'] as const
-
-interface PageProps { searchParams: Promise<{ meses?: string }> }
+interface PageProps { searchParams: Promise<{ meses?: string; serv?: string }> }
 
 export default async function ResumenPage({ searchParams }: PageProps) {
   const params    = await searchParams
   const selMeses  = parseMeses(params.meses)
+  const selServ   = parseMeses(params.serv)
+  const activeServ = (selServ.length ? SERVICIOS.filter(s => selServ.includes(s)) : [...SERVICIOS]) as string[]
 
   let conv:  any[] = []
   let binv:  any[] = []
@@ -64,8 +65,9 @@ export default async function ResumenPage({ searchParams }: PageProps) {
 
       {/* ── Detalle por servicio ── */}
       <GlassCard title="Detalle por Servicio (uds vendidas)" style={{ marginBottom: 16 }}>
+        <Suspense><ServiceFilter /></Suspense>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10, marginBottom: 14 }}>
-          {SERVICIOS.map(s => {
+          {activeServ.map(s => {
             const c = CHART_COLORS[s as keyof typeof CHART_COLORS]
             return (
               <div key={s} style={{ background: `${c}14`, border: `1.4px solid ${c}33`, borderRadius: 'var(--r-sm)', padding: '10px 12px' }}>
@@ -79,7 +81,7 @@ export default async function ResumenPage({ searchParams }: PageProps) {
           <Suspense fallback={<div style={{ height: 240 }} />}>
             <PlotlyChart
               height={240}
-              data={SERVICIOS.map(s => ({
+              data={activeServ.map(s => ({
                 type: 'bar', name: s,
                 x: mesesMix,
                 y: mesesMix.map(m => {

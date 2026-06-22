@@ -3,6 +3,9 @@
 export const ALL_MESES = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'] as const
 export type Mes = typeof ALL_MESES[number]
 
+export const SERVICIOS = ['UCU', 'ADN', 'Tamizaje', 'MyPrenatal', 'Seguridad Total'] as const
+export type Servicio = typeof SERVICIOS[number]
+
 export const META_VEND: Record<string, { ucu: number; adn: number; tamizaje: number; myprenatal: number }> = {
   Lima:      { ucu: 15, adn: 5, tamizaje: 5, myprenatal: 2 },
   Provincia: { ucu: 15, adn: 5, tamizaje: 5, myprenatal: 2 },
