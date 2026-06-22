@@ -1,231 +1,156 @@
 import { Suspense } from 'react'
-import { db } from '@/db'
-import { conversionData, serviceMix } from '@/db/schema'
-import { inArray } from 'drizzle-orm'
-import { KpiBox } from '@/components/ui/kpi-box'
-import { GlassCard } from '@/components/ui/glass-card'
 import { MonthFilter } from '@/components/ui/month-filter'
-import { PlotlyChart } from '@/components/charts/plotly-chart'
-import { fmt, soles, pct, parseMeses, avg, sum } from '@/lib/utils'
-import { SCORECARD_DEF, ALL_MESES, CHART_COLORS } from '@/lib/constants'
+import { GlassCard } from '@/components/ui/glass-card'
+import { SCORECARD_DEF } from '@/lib/constants'
+import { parseMeses, fmt } from '@/lib/utils'
+
+export const dynamic = 'force-dynamic'
 
 interface PageProps {
   searchParams: Promise<{ meses?: string }>
 }
 
-async function getConvData(meses: string[]) {
-  if (!process.env.DATABASE_URL) return []
-  const rows = meses.length
-    ? await db.select().from(conversionData).where(inArray(conversionData.mes, meses))
-    : await db.select().from(conversionData)
-  return rows
+const REAL_MESES = SCORECARD_DEF.meses // ['ENE'..'MAY']
+
+function valStr(v: number | undefined, f: string): string {
+  if (v === undefined || v === null) return '—'
+  if (f === 'pct') return v.toFixed(2) + '%'
+  if (f === 'mxn') return 'MX$' + fmt(Math.round(v))
+  return fmt(v)
 }
 
-async function getMixData(meses: string[]) {
-  if (!process.env.DATABASE_URL) return []
-  const rows = meses.length
-    ? await db.select().from(serviceMix).where(inArray(serviceMix.mes, meses))
-    : await db.select().from(serviceMix)
-  return rows
+function attainment(real: number, meta: number, better: string): number {
+  if (!meta || real === undefined) return 0
+  return better === 'lower' ? meta / real : real / meta
 }
 
-export default async function KpisPage({ searchParams }: PageProps) {
-  const params  = await searchParams
-  const selMeses = parseMeses(params.meses)
-  const activeMeses = selMeses.length ? selMeses : [...ALL_MESES]
+function clr(p: number): string {
+  if (!p) return 'var(--color-muted)'
+  return p >= 1 ? '#16A34A' : p >= 0.85 ? '#D97706' : '#DC2626'
+}
 
-  let conv: Awaited<ReturnType<typeof getConvData>> = []
-  let mix:  Awaited<ReturnType<typeof getMixData>>  = []
-  try {
-    ;[conv, mix] = await Promise.all([
-      getConvData(selMeses),
-      getMixData(selMeses),
-    ])
-  } catch {
-    // DB not connected — show empty state
-  }
-
-  // ── Aggregates ───────────────────────────────────────────────
-  const totalLeads   = sum(conv.map(r => r.ing ?? 0))
-  const totalServ    = sum(conv.map(r => r.serv ?? 0))
-  const totalVenta   = sum(conv.map(r => r.venta ?? 0))
-  const totalInv     = sum(conv.map(r => r.monto ?? 0))
-  const avgRoas      = avg(conv.map(r => r.roas ?? 0))
-  const avgCpa       = avg(conv.map(r => r.cpa ?? 0))
-  const avgCr3       = avg(conv.map(r => r.cr3 ?? 0))
-  const avgCpl       = avg(conv.map(r => r.cpl ?? 0))
-  const totalValidos = sum(conv.map(r => r.val ?? 0))
-
-  // ── Chart data ───────────────────────────────────────────────
-  const chartMeses = conv.map(r => r.mes)
-  const convChart = {
-    data: [
-      { type: 'bar', name: 'Leads', x: chartMeses, y: conv.map(r => r.ing), marker: { color: '#2563EB' } },
-      { type: 'bar', name: 'Válidos', x: chartMeses, y: conv.map(r => r.val), marker: { color: '#7C3AED' } },
-      { type: 'bar', name: 'Servicios', x: chartMeses, y: conv.map(r => r.serv), marker: { color: '#5ED29C' } },
-    ],
-    layout: { barmode: 'group' },
-  }
-
-  const ventasCanalChart = {
-    data: [
-      { type: 'bar', name: 'Online', x: chartMeses, y: conv.map(r => r.ventaOnline), marker: { color: '#2563EB' } },
-      { type: 'bar', name: 'Offline', x: chartMeses, y: conv.map(r => r.ventaOffline), marker: { color: '#D97706' } },
-    ],
-    layout: { barmode: 'stack' },
-  }
-
-  // Scorecard hero KPIs
-  const SC = SCORECARD_DEF
-  const scMeses = SC.meses
-  function ytd(kpi: { fmt: string; real: readonly number[]; meta_fy: number }, label = '') {
-    const activeSC = scMeses.filter(m => activeMeses.includes(m))
-    const indices  = activeSC.map(m => scMeses.indexOf(m)).filter(i => i >= 0)
-    const vals     = indices.map(i => kpi.real[i])
-    if (kpi.fmt === 'pct' || kpi.fmt === 'soles' || kpi.fmt === 'mxn') return avg(vals)
-    return sum(vals)
-  }
+export default async function KpisScoreboard({ searchParams }: PageProps) {
+  const params = await searchParams
+  const sel = parseMeses(params.meses)
+  const months = sel.length ? REAL_MESES.filter(m => sel.includes(m)) : REAL_MESES
+  const idxs = months.map(m => REAL_MESES.indexOf(m))
 
   return (
     <div>
-      <Suspense>
-        <MonthFilter />
-      </Suspense>
-
-      {/* ── Hero KPI row ── */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
-        gap: 12, marginBottom: 24,
-      }}>
-        <KpiBox
-          label="Ventas CrioCord"
-          value={fmt(totalServ > 0 ? totalServ : ytd(SC.sections[4].kpis[0]))}
-          subvalue={`Meta FY: ${fmt(SC.meta_fy_ventas)}`}
-          trend={totalServ >= 80 ? 'up' : 'neutral'}
-          color="var(--color-primary)"
-        />
-        <KpiBox
-          label="Total Leads"
-          value={compact(totalLeads)}
-          subvalue="ingresados"
-        />
-        <KpiBox
-          label="Leads Válidos"
-          value={compact(totalValidos)}
-        />
-        <KpiBox
-          label="Inversión"
-          value={soles(totalInv, 0)}
-          trend={totalInv > 0 ? 'neutral' : 'neutral'}
-        />
-        <KpiBox
-          label="Ventas (uds)"
-          value={compact(totalVenta)}
-          subvalue="online + offline"
-          color="var(--color-primary)"
-        />
-        <KpiBox
-          label="CPA Prom."
-          value={soles(avgCpa, 0)}
-          subvalue="costo por adquisición"
-          trend={avgCpa < 200 ? 'up' : 'down'}
-        />
-        <KpiBox
-          label="CR Lead→Cliente"
-          value={pct(avgCr3)}
-          subvalue="CR3 promedio"
-          trend={avgCr3 >= 4 ? 'up' : 'down'}
-        />
-        <KpiBox
-          label="CPL Prom."
-          value={soles(avgCpl, 2)}
-          subvalue="costo por lead"
-        />
+      <div style={{ marginBottom: 4 }}>
+        <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--color-foreground)', marginBottom: 4 }}>
+          KPIs 2026 — Scoreboard
+        </h2>
+        <p style={{ fontSize: 12, color: 'var(--color-muted)' }}>
+          Reporte mensual a México (Meta vs Real). Meta FY ventas: 968 uds.
+        </p>
       </div>
 
-      {/* ── Scorecard sections ── */}
-      <div style={{ marginBottom: 24 }}>
-        {SC.sections.map(sec => (
-          <GlassCard
-            key={sec.id}
-            style={{ marginBottom: 12 }}
-            title={`${sec.num} ${sec.title}`}
-          >
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-              gap: 12,
-            }}>
-              {sec.kpis.map(kpi => {
-                const real = ytd(kpi)
-                const activeSC = scMeses.filter(m => activeMeses.includes(m))
-                const metaYtd  = (kpi.fmt === 'pct' || kpi.fmt === 'soles')
-                  ? kpi.meta_fy
-                  : sum(activeSC.map(m => kpi.meta[scMeses.indexOf(m)]).filter(v => v >= 0))
-                const pctVal   = metaYtd ? (kpi.fmt === 'soles' ? metaYtd / real : real / metaYtd) : 0
-                const clr      = pctVal >= 1 ? '#16A34A' : pctVal >= 0.85 ? '#D97706' : '#DC2626'
-                return (
-                  <div key={kpi.id} style={{
-                    background: `${clr}11`,
-                    border: `1.4px solid ${clr}33`,
-                    borderRadius: 'var(--r-sm)',
-                    padding: '12px 14px',
-                  }}>
-                    <div className="eyebrow" style={{ marginBottom: 6 }}>{kpi.label}</div>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: clr }}>
-                      {(() => {
-                        if (kpi.fmt === 'pct') return pct(real * 100)
-                        if (kpi.fmt === 'soles') return soles(real, 0)
-                        return real >= 10000 ? (real / 1000).toFixed(1) + 'K' : fmt(Math.round(real))
-                      })()}
-                    </div>
-                    <div style={{ fontSize: 11, color: 'var(--color-muted)', marginTop: 4 }}>
-                      {pctVal ? `${Math.round(pctVal * 100)}% de meta` : 'Sin meta'}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </GlassCard>
-        ))}
-      </div>
+      <Suspense><MonthFilter /></Suspense>
 
-      {/* ── Charts ── */}
-      {conv.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-          <GlassCard title="Leads / Válidos / Servicios por Mes">
-            <Suspense fallback={<div style={{ height: 300 }} />}>
-              <PlotlyChart data={convChart.data} layout={convChart.layout} height={280} />
-            </Suspense>
-          </GlassCard>
-          <GlassCard title="Ventas Online vs Offline (uds)">
-            <Suspense fallback={<div style={{ height: 300 }} />}>
-              <PlotlyChart data={ventasCanalChart.data} layout={ventasCanalChart.layout} height={280} />
-            </Suspense>
-          </GlassCard>
-        </div>
-      )}
-
-      {conv.length === 0 && (
-        <div className="glass" style={{
-          borderRadius: 'var(--r-md)', padding: 40,
-          textAlign: 'center', color: 'var(--color-muted)',
-        }}>
-          <div style={{ fontSize: 32, marginBottom: 12 }}>⚠️</div>
-          <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>Base de datos no configurada</div>
-          <div style={{ fontSize: 13 }}>
-            Crea un archivo <code>.env.local</code> con <code>DATABASE_URL</code>, luego ejecuta{' '}
-            <code>npm run db:push && npm run db:seed</code>
+      {SCORECARD_DEF.sections.map(sec => (
+        <GlassCard key={sec.num} title={`${sec.num} ${sec.title}`} style={{ marginBottom: 14 }}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
+                  <th style={{ ...th, textAlign: 'left', minWidth: 180 }}>KPI</th>
+                  <th style={{ ...th, width: 70 }}></th>
+                  {months.map(m => <th key={m} style={{ ...th, width: 72 }}>{m}</th>)}
+                  <th style={{ ...th, width: 86, borderLeft: '1px solid var(--color-border)' }}>FY 2026</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sec.kpis.map((kpi, ki) => {
+                  const fyPct = attainment(kpi.realFy, kpi.metaFy, kpi.better)
+                  const bold = 'bold' in kpi && kpi.bold
+                  return (
+                    <ScoreRows
+                      key={ki}
+                      label={kpi.label}
+                      fmtType={kpi.fmt}
+                      better={kpi.better}
+                      bold={!!bold}
+                      meta={kpi.meta as readonly number[]}
+                      real={kpi.real as readonly number[]}
+                      metaFy={kpi.metaFy}
+                      realFy={kpi.realFy}
+                      fyPct={fyPct}
+                      idxs={idxs}
+                      lastRow={ki === sec.kpis.length - 1}
+                    />
+                  )
+                })}
+              </tbody>
+            </table>
           </div>
-        </div>
-      )}
+        </GlassCard>
+      ))}
+
+      <div style={{ display: 'flex', gap: 16, alignItems: 'center', fontSize: 11, color: 'var(--color-muted)', padding: '4px 2px' }}>
+        <span style={{ fontWeight: 600 }}>Semáforo:</span>
+        <Legend color="#16A34A" label="≥100% Meta" />
+        <Legend color="#D97706" label="85–99%" />
+        <Legend color="#DC2626" label="<85%" />
+      </div>
     </div>
   )
 }
 
-function compact(n: number) {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
-  return fmt(Math.round(n))
+function ScoreRows({
+  label, fmtType, better, bold, meta, real, metaFy, realFy, fyPct, idxs, lastRow,
+}: {
+  label: string; fmtType: string; better: string; bold: boolean
+  meta: readonly number[]; real: readonly number[]; metaFy: number; realFy: number
+  fyPct: number; idxs: number[]; lastRow: boolean
+}) {
+  const sep = lastRow ? {} : { borderBottom: '1px solid var(--color-border)' }
+  const labelCell: React.CSSProperties = {
+    padding: '6px 10px', verticalAlign: 'top', color: 'var(--color-foreground)',
+    fontWeight: bold ? 800 : 600, fontSize: bold ? 13 : 12,
+  }
+  return (
+    <>
+      <tr>
+        <td rowSpan={3} style={{ ...labelCell, ...sep }}>{label}</td>
+        <td style={mutedTag}>Meta</td>
+        {idxs.map(i => <td key={i} style={cellMuted}>{valStr(meta[i], fmtType)}</td>)}
+        <td style={{ ...cellMuted, borderLeft: '1px solid var(--color-border)' }}>{valStr(metaFy, fmtType)}</td>
+      </tr>
+      <tr>
+        <td style={mutedTag}>Real</td>
+        {idxs.map((i, k) => <td key={k} style={cellReal}>{valStr(real[i], fmtType)}</td>)}
+        <td style={{ ...cellReal, borderLeft: '1px solid var(--color-border)' }}>{valStr(realFy, fmtType)}</td>
+      </tr>
+      <tr style={sep}>
+        <td style={mutedTag}>%</td>
+        {idxs.map((i, k) => {
+          const p = attainment(real[i], meta[i], better)
+          return (
+            <td key={k} style={{ ...cellPct, color: clr(p), background: p ? `${clr(p)}14` : 'transparent' }}>
+              {p ? Math.round(p * 100) + '%' : '—'}
+            </td>
+          )
+        })}
+        <td style={{ ...cellPct, color: clr(fyPct), background: fyPct ? `${clr(fyPct)}14` : 'transparent', borderLeft: '1px solid var(--color-border)' }}>
+          {fyPct ? Math.round(fyPct * 100) + '%' : '—'}
+        </td>
+      </tr>
+    </>
+  )
 }
+
+function Legend({ color, label }: { color: string; label: string }) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+      <span style={{ width: 9, height: 9, borderRadius: '50%', background: color }} />
+      {label}
+    </span>
+  )
+}
+
+const th: React.CSSProperties = { padding: '7px 8px', textAlign: 'center', color: 'var(--color-muted)', fontWeight: 600, fontSize: 11 }
+const mutedTag: React.CSSProperties = { padding: '4px 8px', textAlign: 'left', color: 'var(--color-subtle)', fontSize: 10, letterSpacing: '0.04em', textTransform: 'uppercase' }
+const cellMuted: React.CSSProperties = { padding: '4px 8px', textAlign: 'center', color: 'var(--color-muted)', fontSize: 11 }
+const cellReal: React.CSSProperties = { padding: '4px 8px', textAlign: 'center', color: 'var(--color-foreground)', fontWeight: 600, fontSize: 12 }
+const cellPct: React.CSSProperties = { padding: '4px 8px', textAlign: 'center', fontWeight: 700, fontSize: 11, borderRadius: 4 }

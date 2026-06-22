@@ -13,45 +13,48 @@ export const META_CAPT: Record<string, { ucu: number; adn: number; tamizaje: num
   Arequipa: { ucu: 10, adn: 5,  tamizaje: 5,  myprenatal: 4  },
 }
 
+// KPIs 2026 Scoreboard — official report to Mexico.
+// Source: SCOREBOARD.xlsx (updated manually by Daniel). meta = 12 months
+// (ENE–DIC), real = months reported so far (ENE–MAY). fmt: num | pct | mxn.
+// Color: %≥100 verde, 85–99 amarillo, <85 rojo.
 export const SCORECARD_DEF = {
   meses: ['ENE','FEB','MAR','ABR','MAY'] as string[],
   meta_fy_ventas: 968,
   sections: [
     {
-      id: 'digital', num: '①', title: 'Digital Performance', color: '#2563EB',
+      num: '①', title: 'DIGITAL PERFORMANCE',
       kpis: [
-        { id: 'leads_digital', label: 'Total Leads Digital', fmt: 'num', better: 'higher', meta_fy: 13500, real_fy: 5386, meta: [1000,1000,1000,1000,1000], real: [1295,981,992,1013,1105] },
-        { id: 'ventas_digitales', label: 'Ventas Digitales', fmt: 'num', better: 'higher', meta_fy: 656, real_fy: 204, meta: [54,35,39,54,54], real: [54,35,45,26,44] },
-        { id: 'cpl', label: 'CPL (S/ ÷ leads)', fmt: 'soles', better: 'lower', meta_fy: 48, real_fy: 29, meta: [71,70,69,51,38], real: [21,26,33,35,31] },
-        { id: 'cr_digital', label: 'CR Digital (%)', fmt: 'pct', better: 'higher', meta_fy: 0.045, real_fy: 0.0379, meta: [0.045,0.045,0.045,0.045,0.045], real: [0.0417,0.0357,0.0454,0.0257,0.0398] },
+        { label: 'Total Leads Digital', fmt: 'num', better: 'higher', meta: [1000,1000,1000,1000,1000,1000,1250,1250,1250,1250,1250,1250], real: [1295,981,992,1013,1105], metaFy: 13500, realFy: 5386 },
+        { label: 'Ventas Digitales', fmt: 'num', better: 'higher', meta: [54,35,39,54,54,54,61,61,61,61,61,61], real: [54,35,45,26,44], metaFy: 656, realFy: 204 },
+        { label: 'CPL (MXN ÷ leads)', fmt: 'mxn', better: 'lower', meta: [71,70,69,51,38,48,46,50,32,50,23,24], real: [21,26,33,35,31], metaFy: 572, realFy: 146 },
+        { label: 'CR Digital', fmt: 'pct', better: 'higher', meta: [4.5,4.5,4.5,4.5,4.5,4.5,4.5,4.5,4.5,4.5,4.5,4.5], real: [4.17,3.57,4.54,2.57,3.98], metaFy: 4.5, realFy: 3.79 },
       ],
     },
     {
-      id: 'influencer', num: '②', title: 'Influencer & Partnerships', color: '#7C3AED',
+      num: '②', title: 'INFLUENCER & PARTNERSHIPS',
       kpis: [
-        { id: 'influencers', label: 'Influencers Activos', fmt: 'num', better: 'higher', meta_fy: 12, real_fy: 5, meta: [1,1,1,1,1], real: [1,1,1,1,1] },
-        { id: 'aliados', label: 'Aliados Activos', fmt: 'num', better: 'higher', meta_fy: 24, real_fy: 15, meta: [2,2,2,2,2], real: [3,3,3,3,3] },
+        { label: 'Influencers Activos', fmt: 'num', better: 'higher', meta: [1,1,1,1,1,1,1,1,1,1,1,1], real: [1,1,1,1,1], metaFy: 12, realFy: 5 },
+        { label: 'Aliados Activos', fmt: 'num', better: 'higher', meta: [2,2,2,2,2,2,2,2,2,2,2,2], real: [3,3,3,3,3], metaFy: 24, realFy: 15 },
       ],
     },
     {
-      id: 'leads', num: '③', title: 'Leads Totales', color: '#0891B2',
+      num: '③', title: 'LEADS TOTALES',
       kpis: [
-        { id: 'leads_online', label: 'Leads Online (Digital)', fmt: 'num', better: 'higher', meta_fy: 13500, real_fy: 5386, meta: [1000,1000,1000,1000,1000], real: [1295,981,992,1013,1105] },
-        { id: 'leads_offline', label: 'Leads Offline (VM + Eventos)', fmt: 'num', better: 'higher', meta_fy: 12000, real_fy: 4190, meta: [1250,1250,1000,750,750], real: [1038,1362,884,404,502] },
-        { id: 'total_leads', label: 'TOTAL LEADS', fmt: 'num', better: 'higher', bold: true, meta_fy: 25500, real_fy: 9576, meta: [2250,2250,2000,1750,1750], real: [2333,2343,1876,1417,1607] },
+        { label: 'Leads Offline', fmt: 'num', better: 'higher', meta: [1250,1250,1000,750,750,1000,1000,1000,1000,1000,1000,1000], real: [1038,1362,884,404,502], metaFy: 12000, realFy: 4190 },
+        { label: 'TOTAL LEADS', fmt: 'num', better: 'higher', bold: true, meta: [2250,2250,2000,1750,1750,2000,2250,2250,2250,2250,2250,2250], real: [2333,2343,1876,1417,1607], metaFy: 25500, realFy: 9576 },
       ],
     },
     {
-      id: 'conversion', num: '④', title: 'Conversión', color: '#D97706',
+      num: '④', title: 'CONVERSIÓN (baseline 2025)',
       kpis: [
-        { id: 'cr_online', label: 'CR Online — Lead Digital → Cliente', fmt: 'pct', better: 'higher', meta_fy: 0.045, real_fy: 0.0379, meta: [0.045,0.045,0.045,0.045,0.045], real: [0.0417,0.0357,0.0454,0.0257,0.0398] },
-        { id: 'cr_offline', label: 'CR Offline — Lead Offline → Cliente', fmt: 'pct', better: 'higher', meta_fy: 0.045, real_fy: 0.0224, meta: [0.045,0.045,0.045,0.045,0.045], real: [0.023,0.012,0.028,0.02,0.029] },
+        { label: 'Lead-to-Client Conv.', fmt: 'pct', better: 'higher', meta: [4.5,4.5,4.5,4.5,4.5,4.5,4.5,4.5,4.5,4.5,4.5,4.5], real: [3.43,2.18,3.04,2.19,3.61], metaFy: 4.5, realFy: 2.89 },
+        { label: 'CR Offline', fmt: 'pct', better: 'higher', meta: [4.5,4.5,4.5,4.5,4.5,4.5,4.5,4.5,4.5,4.5,4.5,4.5], real: [2.30,1.20,2.80,2.00,2.90], metaFy: 4.5, realFy: 2.24 },
       ],
     },
     {
-      id: 'negocios', num: '⑤', title: 'Resultados de Negocio', color: '#059669',
+      num: '⑤', title: 'RESULTADOS DE NEGOCIO',
       kpis: [
-        { id: 'ventas_criocord', label: 'Ventas CrioCord (uds)', fmt: 'num', better: 'higher', bold: true, meta_fy: 968, real_fy: 277, meta: [80,51,57,80,80], real: [80,51,57,31,58] },
+        { label: 'Criocord (ventas uds)', fmt: 'num', better: 'higher', bold: true, meta: [80,51,57,80,80,80,90,90,90,90,90,90], real: [80,51,57,31,58], metaFy: 968, realFy: 277 },
       ],
     },
   ],

@@ -44,6 +44,12 @@ const MIX = [
   { mes: 'MAY', servicio: 'Tamizaje', servicios: 31, venta: 0 },
   { mes: 'MAY', servicio: 'MyPrenatal', servicios: 8, venta: 0 },
   { mes: 'MAY', servicio: 'Seguridad Total', servicios: 24, venta: 0 },
+  // JUN — avance preliminar (servicios entregados por FFVV; online/atribución pendiente)
+  { mes: 'JUN', servicio: 'UCU', servicios: 40, venta: 0 },
+  { mes: 'JUN', servicio: 'ADN', servicios: 10, venta: 0 },
+  { mes: 'JUN', servicio: 'Tamizaje', servicios: 16, venta: 0 },
+  { mes: 'JUN', servicio: 'MyPrenatal', servicios: 3, venta: 0 },
+  { mes: 'JUN', servicio: 'Seguridad Total', servicios: 45, venta: 0 },
 ]
 
 const VM = [
