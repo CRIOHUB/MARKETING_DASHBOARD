@@ -20,12 +20,16 @@ export async function GET(req: NextRequest) {
     const { createSchema } = await import('@/db/setup')
     const { seed } = await import('@/db/seed')
 
-    await createSchema()   // 1. create tables (idempotent)
-    await seed()           // 2. wipe + load all data
+    await createSchema()           // 1. create tables (idempotent)
+    const results = await seed()   // 2. wipe + load all data (per-table)
 
+    const failed = Object.entries(results ?? {}).filter(([, v]) => v !== 'ok')
     return NextResponse.json({
-      ok: true,
-      message: 'Esquema creado y base de datos poblada correctamente.',
+      ok: failed.length === 0,
+      message: failed.length === 0
+        ? 'Esquema creado y base de datos poblada correctamente.'
+        : `Poblado con ${failed.length} tabla(s) con error — revisa "results".`,
+      results,
     })
   } catch (err: any) {
     return NextResponse.json(

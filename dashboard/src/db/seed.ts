@@ -368,104 +368,92 @@ const VM_PROSP = [
 export async function seed() {
   console.log('Seeding database...')
 
-  await db.delete(schema.conversionData)
-  await db.delete(schema.serviceMix)
-  await db.delete(schema.visitaMedica)
-  await db.delete(schema.visitaMedicaCategoria)
-  await db.delete(schema.clinicas)
-  await db.delete(schema.captacion)
-  await db.delete(schema.presupuesto)
-  await db.delete(schema.historialGastos)
-  await db.delete(schema.vendedores)
-  await db.delete(schema.comunicaciones)
-  await db.delete(schema.actividades)
-  await db.delete(schema.proyectos)
-  await db.delete(schema.inversionBruta)
-  await db.delete(schema.captacionRep)
-  await db.delete(schema.vmProspeccion)
+  const allTables = [
+    schema.conversionData, schema.serviceMix, schema.visitaMedica, schema.visitaMedicaCategoria,
+    schema.clinicas, schema.captacion, schema.presupuesto, schema.historialGastos,
+    schema.vendedores, schema.comunicaciones, schema.actividades, schema.proyectos,
+    schema.inversionBruta, schema.captacionRep, schema.vmProspeccion,
+  ]
+  for (const t of allTables) {
+    try { await db.delete(t) } catch (e: any) { console.error('delete fail', e?.message ?? e) }
+  }
 
-  await db.insert(schema.conversionData).values(CONV.map(d => ({
+  // Each insert runs independently: a failure in one table no longer leaves
+  // the rest empty, and `results` reports exactly which table failed.
+  const results: Record<string, string> = {}
+  const step = async (name: string, fn: () => Promise<unknown>) => {
+    try { await fn(); results[name] = 'ok'; console.log('✓', name) }
+    catch (e: any) { results[name] = 'ERROR: ' + (e?.message ?? e); console.error('✗', name, e?.message ?? e) }
+  }
+
+  await step('conversion_data', () => db.insert(schema.conversionData).values(CONV.map(d => ({
     mes: d.mes, mayoMode: d.mayo_mode, ing: d.ing, val: d.val, serv: d.serv,
     monto: d.monto, venta: d.venta, ventaOnline: d.venta_online, ventaOffline: d.venta_offline,
     cac: d.cac, roas: d.roas, cpl: d.cpl, cpa: d.cpa,
     cr1: d.cr1, cr2: d.cr2, cr3: d.cr3, roiPct: d.roi_pct,
-  })))
-  console.log('✓ conversion_data')
+  }))))
 
-  await db.insert(schema.serviceMix).values(MIX.map(d => ({
+  await step('service_mix', () => db.insert(schema.serviceMix).values(MIX.map(d => ({
     mes: d.mes, servicio: d.servicio, servicios: d.servicios, venta: d.venta,
-  })))
-  console.log('✓ service_mix')
+  }))))
 
-  await db.insert(schema.visitaMedica).values(VM.map(d => ({
+  await step('visita_medica', () => db.insert(schema.visitaMedica).values(VM.map(d => ({
     mes: d.mes, exec: d.exec, zona: d.zona, visitas: d.visitas, potUso: d.pot_uso, notas: d.notas,
-  })))
-  console.log('✓ visita_medica')
+  }))))
 
-  await db.insert(schema.visitaMedicaCategoria).values(VMCAT.map(d => ({
+  await step('visita_medica_categoria', () => db.insert(schema.visitaMedicaCategoria).values(VMCAT.map(d => ({
     mes: d.mes, exec: d.exec, cat: d.cat, visitas: d.visitas,
-  })))
-  console.log('✓ visita_medica_categoria')
+  }))))
 
-  await db.insert(schema.clinicas).values(CLIN.map(d => ({
+  await step('clinicas', () => db.insert(schema.clinicas).values(CLIN.map(d => ({
     clinica: d.clinica, rep: d.rep, zona: d.zona, visitas: d.visitas, mes: d.mes,
-  })))
-  console.log('✓ clinicas')
+  }))))
 
-  await db.insert(schema.captacion).values(CAPT.map(d => ({
+  await step('captacion', () => db.insert(schema.captacion).values(CAPT.map(d => ({
     captador: d.captador, canal: d.canal, mes: d.mes, ventas: d.ventas,
-  })))
-  console.log('✓ captacion')
+  }))))
 
-  await db.insert(schema.presupuesto).values(PPTO.map(d => ({
+  await step('presupuesto', () => db.insert(schema.presupuesto).values(PPTO.map(d => ({
     mes: d.mes, online: d.online, offline: d.offline, eventos: d.eventos,
     gastado: d.gastado, gastoTotal: d.gasto_total, pptoPlan: d.ppto_plan, cumplPct: d.cumpl_pct,
-  })))
-  console.log('✓ presupuesto')
+  }))))
 
-  await db.insert(schema.historialGastos).values(HIST.map(d => ({
+  await step('historial_gastos', () => db.insert(schema.historialGastos).values(HIST.map(d => ({
     fecha: d.fecha, mes: d.mes, categoria: d.categoria, descripcion: d.desc, monto: d.monto,
-  })))
-  console.log('✓ historial_gastos')
+  }))))
 
-  await db.insert(schema.vendedores).values(VEND.map(d => ({
+  await step('vendedores', () => db.insert(schema.vendedores).values(VEND.map(d => ({
     exec: d.exec, zona: d.zona, mes: d.mes, ucu: d.ucu, adn: d.adn,
     tamizaje: d.tamizaje, myprenatal: d.myprenatal, segTotal: d.seg_total,
     leads: d.leads, validos: d.validos,
-  })))
-  console.log('✓ vendedores')
+  }))))
 
-  await db.insert(schema.comunicaciones).values(COMMS.map(d => ({
+  await step('comunicaciones', () => db.insert(schema.comunicaciones).values(COMMS.map(d => ({
     fecha: d.fecha, mes: d.mes, canal: d.canal, audiencia: d.audiencia,
     tipo: d.tipo, tema: d.tema, hecho: d.hecho,
-  })))
-  console.log('✓ comunicaciones')
+  }))))
 
-  await db.insert(schema.actividades).values(ACT.map(d => ({
+  await step('actividades', () => db.insert(schema.actividades).values(ACT.map(d => ({
     actividad: d.actividad, cat: d.cat, hecho: d.hecho, meses: d.meses,
-  })))
-  console.log('✓ actividades')
+  }))))
 
-  await db.insert(schema.proyectos).values(PROY_DEF)
-  console.log('✓ proyectos')
+  await step('proyectos', () => db.insert(schema.proyectos).values(PROY_DEF))
 
-  await db.insert(schema.inversionBruta).values(BINV.map(d => ({
+  await step('inversion_bruta', () => db.insert(schema.inversionBruta).values(BINV.map(d => ({
     mes: d.mes, invPub: d.inv_pub, invTotal: d.inv_total,
     pptoTotal: d.ppto_total, pctEjec: d.pct_ejec,
-  })))
-  console.log('✓ inversion_bruta')
+  }))))
 
-  await db.insert(schema.captacionRep).values(CAPT_REP.map(d => ({
+  await step('captacion_rep', () => db.insert(schema.captacionRep).values(CAPT_REP.map(d => ({
     mes: d.mes, rep: d.rep, canal: d.canal, ucu: d.ucu, tamizaje: d.tamizaje,
     adn: d.adn, myprenatal: d.myprenatal, total: d.total,
-  })))
-  console.log('✓ captacion_rep')
+  }))))
 
-  await db.insert(schema.vmProspeccion).values(VM_PROSP.map(d => ({
+  await step('vm_prospeccion', () => db.insert(schema.vmProspeccion).values(VM_PROSP.map(d => ({
     mes: d.mes, captador: d.captador, canal: d.canal,
     leads: d.leads, captaciones: d.captaciones, detalle: d.detalle,
-  })))
-  console.log('✓ vm_prospeccion')
+  }))))
 
-  console.log('\nSeed complete.')
+  console.log('\nSeed complete.', results)
+  return results
 }

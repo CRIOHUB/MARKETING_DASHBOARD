@@ -6,6 +6,13 @@ export type Mes = typeof ALL_MESES[number]
 export const SERVICIOS = ['UCU', 'ADN', 'Tamizaje', 'MyPrenatal', 'Seguridad Total'] as const
 export type Servicio = typeof SERVICIOS[number]
 
+// Precio unitario (S/) por servicio. MyPrenatal y Seguridad Total: por definir.
+export const PRECIOS_SERVICIO: Record<string, number> = {
+  UCU: 4200,
+  Tamizaje: 1500,
+  ADN: 1200,
+}
+
 export const META_VEND: Record<string, { ucu: number; adn: number; tamizaje: number; myprenatal: number }> = {
   Lima:      { ucu: 15, adn: 5, tamizaje: 5, myprenatal: 2 },
   Provincia: { ucu: 15, adn: 5, tamizaje: 5, myprenatal: 2 },
