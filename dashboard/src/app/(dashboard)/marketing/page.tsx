@@ -36,7 +36,6 @@ export default async function MarketingPage({ searchParams }: PageProps) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12, marginBottom: 24 }}>
         <KpiBox label="CPL Prom." value={soles(avgCpl, 2)} subvalue="costo por lead" trend={avgCpl < 10 ? 'up' : 'neutral'} />
         <KpiBox label="CPA Prom." value={soles(avgCpa, 0)} subvalue="costo por adquisición" trend={avgCpa < 200 ? 'up' : 'down'} />
-        <KpiBox label="ROAS Prom." value={fmt(avgRoas, 2) + 'x'} trend={avgRoas >= 10 ? 'up' : 'down'} color="var(--color-primary)" />
         <KpiBox label="CR3 Prom." value={pct(avgCr3)} subvalue="Lead → Cliente" trend={avgCr3 >= 4 ? 'up' : 'down'} />
         <KpiBox label="CR1 Prom." value={pct(avgCr1)} subvalue="Lead → Válido" />
         <KpiBox label="Inversión" value={soles(totalInv, 0)} />
@@ -82,14 +81,13 @@ export default async function MarketingPage({ searchParams }: PageProps) {
           ) : <EmptyState />}
         </GlassCard>
 
-        <GlassCard title="ROI (%)">
+        <GlassCard title="Ventas Online vs Offline (uds)">
           {conv.length > 0 ? (
             <Suspense fallback={<div style={{ height: 260 }} />}>
-              <PlotlyChart height={260} data={[{
-                type: 'bar', name: 'ROI %', x: meses,
-                y: conv.map((r: any) => r.roiPct),
-                marker: { color: '#059669' },
-              }]} />
+              <PlotlyChart height={260} data={[
+                { type: 'bar', name: 'Online', x: meses, y: conv.map((r: any) => r.ventaOnline), marker: { color: '#2563EB' } },
+                { type: 'bar', name: 'Offline', x: meses, y: conv.map((r: any) => r.ventaOffline), marker: { color: '#D97706' } },
+              ]} layout={{ barmode: 'stack' }} />
             </Suspense>
           ) : <EmptyState />}
         </GlassCard>

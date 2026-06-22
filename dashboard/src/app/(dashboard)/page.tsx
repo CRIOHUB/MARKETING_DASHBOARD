@@ -67,15 +67,12 @@ export default async function KpisPage({ searchParams }: PageProps) {
     layout: { barmode: 'group' },
   }
 
-  const roasChart = {
-    data: [{
-      type: 'scatter', mode: 'lines+markers', name: 'ROAS',
-      x: chartMeses, y: conv.map(r => r.roas),
-      line: { color: '#5ED29C', width: 2.5 },
-      marker: { color: '#5ED29C', size: 8 },
-      fill: 'tozeroy', fillcolor: 'rgba(94,210,156,.10)',
-    }],
-    layout: { yaxis: { title: { text: 'x' } } },
+  const ventasCanalChart = {
+    data: [
+      { type: 'bar', name: 'Online', x: chartMeses, y: conv.map(r => r.ventaOnline), marker: { color: '#2563EB' } },
+      { type: 'bar', name: 'Offline', x: chartMeses, y: conv.map(r => r.ventaOffline), marker: { color: '#D97706' } },
+    ],
+    layout: { barmode: 'stack' },
   }
 
   // Scorecard hero KPIs
@@ -123,16 +120,10 @@ export default async function KpisPage({ searchParams }: PageProps) {
           trend={totalInv > 0 ? 'neutral' : 'neutral'}
         />
         <KpiBox
-          label="Venta Total"
-          value={soles(totalVenta, 0)}
+          label="Ventas (uds)"
+          value={compact(totalVenta)}
+          subvalue="online + offline"
           color="var(--color-primary)"
-          trend={totalVenta > totalInv ? 'up' : 'down'}
-        />
-        <KpiBox
-          label="ROAS Prom."
-          value={fmt(avgRoas, 2) + 'x'}
-          trend={avgRoas >= 10 ? 'up' : avgRoas >= 5 ? 'neutral' : 'down'}
-          trendLabel={avgRoas >= 10 ? 'Excelente' : avgRoas >= 5 ? 'Aceptable' : 'Bajo'}
         />
         <KpiBox
           label="CPA Prom."
@@ -208,9 +199,9 @@ export default async function KpisPage({ searchParams }: PageProps) {
               <PlotlyChart data={convChart.data} layout={convChart.layout} height={280} />
             </Suspense>
           </GlassCard>
-          <GlassCard title="ROAS Mensual">
+          <GlassCard title="Ventas Online vs Offline (uds)">
             <Suspense fallback={<div style={{ height: 300 }} />}>
-              <PlotlyChart data={roasChart.data} layout={roasChart.layout} height={280} />
+              <PlotlyChart data={ventasCanalChart.data} layout={ventasCanalChart.layout} height={280} />
             </Suspense>
           </GlassCard>
         </div>

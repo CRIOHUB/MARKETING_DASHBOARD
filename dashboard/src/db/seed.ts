@@ -2,19 +2,19 @@ import { db } from './index'
 import * as schema from './schema'
 
 // ─── Raw data ─────────────────────────────────────────────────────────────────
-// CONV + MIX synced from live "SEGUIMIENTO KPIS 2026.xlsx" (modified 2026-06-17,
-// read via the M365 connector). Source fields: ing (leads), val (válidos), serv
-// (total servicios), monto (inversión). Derived fields recomputed: cr1=val/ing,
-// cr2=serv/val, cr3=serv/ing, cpl=monto/ing, cpa=monto/serv. Revenue fields
-// (venta/venta_online/venta_offline/roas/roi_pct) are historical ENE–ABR; MAY
-// revenue pending source. Other tables below still hold the prior HTML snapshot.
-
+// CONV + MIX synced from live "SEGUIMIENTO KPIS 2026.xlsx" (2026-06-17) and
+// "SEGUIMIENTO PROSPECCION 2026.xlsx" (read via the M365 connector).
+// ing=leads, val=válidos, serv=total servicios, monto=inversión (S/).
+// venta / venta_online / venta_offline are SALES IN UNITS (from "Captación vs
+// Venta", online vs offline channel). Revenue in soles is NOT tracked, so
+// roas=0 and roi_pct=0 (Venta S/ and ROAS removed from the UI).
+// Derived: cr1=val/ing, cr2=serv/val, cr3=serv/ing, cpl=monto/ing, cpa=monto/serv.
 const CONV = [
-  { mes: 'ENE', mayo_mode: false, ing: 2333, val: 1765, serv: 139, monto: 12000, venta: 428733.8, venta_online: 334412, venta_offline: 94321, cac: 6.8, roas: 35.73, cpl: 5.14, cpa: 86.33, cr1: 75.7, cr2: 7.9, cr3: 6.0, roi_pct: 3472.8 },
-  { mes: 'FEB', mayo_mode: false, ing: 2343, val: 1696, serv: 76, monto: 12423, venta: 227405.09, venta_online: 177376, venta_offline: 50029, cac: 7.32, roas: 18.31, cpl: 5.30, cpa: 163.46, cr1: 72.4, cr2: 4.5, cr3: 3.2, roi_pct: 1730.5 },
-  { mes: 'MAR', mayo_mode: false, ing: 1876, val: 1443, serv: 99, monto: 18217, venta: 256292.98, venta_online: 199909, venta_offline: 56384, cac: 12.62, roas: 14.07, cpl: 9.71, cpa: 184.01, cr1: 76.9, cr2: 6.9, cr3: 5.3, roi_pct: 1306.9 },
-  { mes: 'ABR', mayo_mode: false, ing: 1417, val: 1417, serv: 42, monto: 19968.47, venta: 132824.76, venta_online: 103603, venta_offline: 29221, cac: 14.09, roas: 6.65, cpl: 14.09, cpa: 475.44, cr1: 100.0, cr2: 3.0, cr3: 3.0, roi_pct: 565.2 },
-  { mes: 'MAY', mayo_mode: false, ing: 1607, val: 1050, serv: 120, monto: 20000, venta: 0, venta_online: 0, venta_offline: 0, cac: 0, roas: 0, cpl: 12.45, cpa: 166.67, cr1: 65.3, cr2: 11.4, cr3: 7.5, roi_pct: 0 },
+  { mes: 'ENE', mayo_mode: false, ing: 2333, val: 1765, serv: 139, monto: 12000, venta: 137, venta_online: 97, venta_offline: 40, cac: 0, roas: 0, cpl: 5.14, cpa: 86.33, cr1: 75.7, cr2: 7.9, cr3: 6.0, roi_pct: 0 },
+  { mes: 'FEB', mayo_mode: false, ing: 2343, val: 1696, serv: 76, monto: 12423, venta: 66, venta_online: 43, venta_offline: 23, cac: 0, roas: 0, cpl: 5.30, cpa: 163.46, cr1: 72.4, cr2: 4.5, cr3: 3.2, roi_pct: 0 },
+  { mes: 'MAR', mayo_mode: false, ing: 1876, val: 1443, serv: 99, monto: 18217, venta: 99, venta_online: 81, venta_offline: 18, cac: 0, roas: 0, cpl: 9.71, cpa: 184.01, cr1: 76.9, cr2: 6.9, cr3: 5.3, roi_pct: 0 },
+  { mes: 'ABR', mayo_mode: false, ing: 1417, val: 1417, serv: 42, monto: 19968.47, venta: 45, venta_online: 37, venta_offline: 8, cac: 0, roas: 0, cpl: 14.09, cpa: 475.44, cr1: 100.0, cr2: 3.0, cr3: 3.0, roi_pct: 0 },
+  { mes: 'MAY', mayo_mode: false, ing: 1607, val: 1050, serv: 120, monto: 20000, venta: 120, venta_online: 92, venta_offline: 28, cac: 0, roas: 0, cpl: 12.45, cpa: 166.67, cr1: 65.3, cr2: 11.4, cr3: 7.5, roi_pct: 0 },
 ]
 
 const MIX = [
@@ -462,10 +462,4 @@ export async function seed() {
   console.log('✓ vm_prospeccion')
 
   console.log('\nSeed complete.')
-}
-
-// Only auto-run when executed directly (e.g. `tsx src/db/seed.ts`),
-// NOT when imported by the /api/seed route.
-if (process.argv[1]?.replace(/\\/g, '/').endsWith('/db/seed.ts')) {
-  seed().then(() => process.exit(0)).catch(err => { console.error(err); process.exit(1) })
 }

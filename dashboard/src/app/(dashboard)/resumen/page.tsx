@@ -48,10 +48,10 @@ export default async function ResumenPage({ searchParams }: PageProps) {
       <Suspense><MonthFilter /></Suspense>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12, marginBottom: 24 }}>
-        <KpiBox label="Venta Total" value={soles(ventaTotal, 0)} color="var(--color-primary)" />
+        <KpiBox label="Ventas (uds)" value={fmt(ventaTotal)} color="var(--color-primary)" subvalue="online + offline" />
         <KpiBox label="Inversión Total" value={soles(invTot, 0)} />
-        <KpiBox label="ROAS Promedio" value={fmt(avgRoas, 2) + 'x'} trend={avgRoas >= 10 ? 'up' : 'down'} />
-        <KpiBox label="ROI Prom." value={fmt(avg(conv.map((r: any) => r.roiPct ?? 0)), 1) + '%'} trend="up" />
+        <KpiBox label="Servicios" value={fmt(sum(conv.map((r: any) => r.serv ?? 0)))} />
+        <KpiBox label="Leads" value={fmt(sum(conv.map((r: any) => r.ing ?? 0)))} />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
@@ -71,19 +71,16 @@ export default async function ResumenPage({ searchParams }: PageProps) {
           ) : <EmptyState />}
         </GlassCard>
 
-        <GlassCard title="ROAS Mensual">
+        <GlassCard title="Servicios Vendidos por Mes">
           {conv.length > 0 ? (
             <Suspense fallback={<div style={{ height: 240 }} />}>
               <PlotlyChart
                 height={240}
                 data={[{
-                  type: 'scatter', mode: 'lines+markers+text',
-                  name: 'ROAS', x: meses, y: conv.map((r: any) => r.roas),
-                  text: conv.map((r: any) => (r.roas ?? 0).toFixed(1) + 'x'),
-                  textposition: 'top center',
-                  line: { color: '#5ED29C', width: 2.5 },
-                  marker: { color: '#5ED29C', size: 8 },
-                  fill: 'tozeroy', fillcolor: 'rgba(94,210,156,.08)',
+                  type: 'bar', name: 'Servicios', x: meses, y: conv.map((r: any) => r.serv),
+                  text: conv.map((r: any) => String(r.serv ?? 0)),
+                  textposition: 'outside',
+                  marker: { color: '#5ED29C' },
                 }]}
               />
             </Suspense>
@@ -91,7 +88,7 @@ export default async function ResumenPage({ searchParams }: PageProps) {
         </GlassCard>
       </div>
 
-      <GlassCard title="Captación Online vs Offline (Ventas)">
+      <GlassCard title="Ventas Online vs Offline (uds)">
         {conv.length > 0 ? (
           <Suspense fallback={<div style={{ height: 240 }} />}>
             <PlotlyChart
