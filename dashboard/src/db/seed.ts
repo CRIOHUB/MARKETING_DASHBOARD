@@ -1,34 +1,42 @@
 import { db } from './index'
 import * as schema from './schema'
 
-// ─── Raw data (mirrored from DASHBOARD CRIOCORD 2026.html) ────────────────────
+// ─── Raw data ─────────────────────────────────────────────────────────────────
+// CONV + MIX synced from live "SEGUIMIENTO KPIS 2026.xlsx" (modified 2026-06-17,
+// read via the M365 connector). Source fields: ing (leads), val (válidos), serv
+// (total servicios), monto (inversión). Derived fields recomputed: cr1=val/ing,
+// cr2=serv/val, cr3=serv/ing, cpl=monto/ing, cpa=monto/serv. Revenue fields
+// (venta/venta_online/venta_offline/roas/roi_pct) are historical ENE–ABR; MAY
+// revenue pending source. Other tables below still hold the prior HTML snapshot.
 
 const CONV = [
   { mes: 'ENE', mayo_mode: false, ing: 2333, val: 1765, serv: 139, monto: 12000, venta: 428733.8, venta_online: 334412, venta_offline: 94321, cac: 6.8, roas: 35.73, cpl: 5.14, cpa: 86.33, cr1: 75.7, cr2: 7.9, cr3: 6.0, roi_pct: 3472.8 },
-  { mes: 'FEB', mayo_mode: false, ing: 2343, val: 1696, serv: 81, monto: 12423, venta: 227405.09, venta_online: 177376, venta_offline: 50029, cac: 7.32, roas: 18.31, cpl: 5.3, cpa: 153.37, cr1: 72.4, cr2: 4.8, cr3: 3.5, roi_pct: 1730.5 },
-  { mes: 'MAR', mayo_mode: false, ing: 1876, val: 1443, serv: 100, monto: 18217, venta: 256292.98, venta_online: 199909, venta_offline: 56384, cac: 12.62, roas: 14.07, cpl: 9.71, cpa: 182.17, cr1: 76.9, cr2: 6.9, cr3: 5.3, roi_pct: 1306.9 },
-  { mes: 'ABR', mayo_mode: false, ing: 3347, val: 1417, serv: 49, monto: 19968.47, venta: 132824.76, venta_online: 103603, venta_offline: 29221, cac: 14.09, roas: 6.65, cpl: 5.97, cpa: 407.52, cr1: 42.3, cr2: 3.5, cr3: 1.5, roi_pct: 565.2 },
+  { mes: 'FEB', mayo_mode: false, ing: 2343, val: 1696, serv: 76, monto: 12423, venta: 227405.09, venta_online: 177376, venta_offline: 50029, cac: 7.32, roas: 18.31, cpl: 5.30, cpa: 163.46, cr1: 72.4, cr2: 4.5, cr3: 3.2, roi_pct: 1730.5 },
+  { mes: 'MAR', mayo_mode: false, ing: 1876, val: 1443, serv: 99, monto: 18217, venta: 256292.98, venta_online: 199909, venta_offline: 56384, cac: 12.62, roas: 14.07, cpl: 9.71, cpa: 184.01, cr1: 76.9, cr2: 6.9, cr3: 5.3, roi_pct: 1306.9 },
+  { mes: 'ABR', mayo_mode: false, ing: 1417, val: 1417, serv: 42, monto: 19968.47, venta: 132824.76, venta_online: 103603, venta_offline: 29221, cac: 14.09, roas: 6.65, cpl: 14.09, cpa: 475.44, cr1: 100.0, cr2: 3.0, cr3: 3.0, roi_pct: 565.2 },
+  { mes: 'MAY', mayo_mode: false, ing: 1607, val: 1050, serv: 120, monto: 20000, venta: 0, venta_online: 0, venta_offline: 0, cac: 0, roas: 0, cpl: 12.45, cpa: 166.67, cr1: 65.3, cr2: 11.4, cr3: 7.5, roi_pct: 0 },
 ]
 
 const MIX = [
+  // "Seguridad Total" is tracked as a separate bundle, not part of TOTAL SERV.
   { mes: 'ENE', servicio: 'UCU', servicios: 80, venta: 0 },
-  { mes: 'ENE', servicio: 'ADN', servicios: 27, venta: 0 },
-  { mes: 'ENE', servicio: 'Tamizaje', servicios: 30, venta: 0 },
+  { mes: 'ENE', servicio: 'ADN', servicios: 22, venta: 0 },
+  { mes: 'ENE', servicio: 'Tamizaje', servicios: 35, venta: 0 },
   { mes: 'ENE', servicio: 'MyPrenatal', servicios: 2, venta: 0 },
   { mes: 'ENE', servicio: 'Seguridad Total', servicios: 2, venta: 0 },
-  { mes: 'FEB', servicio: 'UCU', servicios: 51, venta: 0 },
-  { mes: 'FEB', servicio: 'ADN', servicios: 9, venta: 0 },
-  { mes: 'FEB', servicio: 'Tamizaje', servicios: 18, venta: 0 },
+  { mes: 'FEB', servicio: 'UCU', servicios: 50, venta: 0 },
+  { mes: 'FEB', servicio: 'ADN', servicios: 6, venta: 0 },
+  { mes: 'FEB', servicio: 'Tamizaje', servicios: 17, venta: 0 },
   { mes: 'FEB', servicio: 'MyPrenatal', servicios: 3, venta: 0 },
   { mes: 'FEB', servicio: 'Seguridad Total', servicios: 8, venta: 0 },
-  { mes: 'MAR', servicio: 'UCU', servicios: 57, venta: 0 },
-  { mes: 'MAR', servicio: 'ADN', servicios: 20, venta: 0 },
+  { mes: 'MAR', servicio: 'UCU', servicios: 56, venta: 0 },
+  { mes: 'MAR', servicio: 'ADN', servicios: 19, venta: 0 },
   { mes: 'MAR', servicio: 'Tamizaje', servicios: 18, venta: 0 },
-  { mes: 'MAR', servicio: 'MyPrenatal', servicios: 5, venta: 0 },
+  { mes: 'MAR', servicio: 'MyPrenatal', servicios: 6, venta: 0 },
   { mes: 'MAR', servicio: 'Seguridad Total', servicios: 9, venta: 0 },
-  { mes: 'ABR', servicio: 'UCU', servicios: 34, venta: 0 },
-  { mes: 'ABR', servicio: 'ADN', servicios: 5, venta: 0 },
-  { mes: 'ABR', servicio: 'Tamizaje', servicios: 6, venta: 0 },
+  { mes: 'ABR', servicio: 'UCU', servicios: 31, venta: 0 },
+  { mes: 'ABR', servicio: 'ADN', servicios: 3, venta: 0 },
+  { mes: 'ABR', servicio: 'Tamizaje', servicios: 4, venta: 0 },
   { mes: 'ABR', servicio: 'MyPrenatal', servicios: 4, venta: 0 },
   { mes: 'ABR', servicio: 'Seguridad Total', servicios: 5, venta: 0 },
   { mes: 'MAY', servicio: 'UCU', servicios: 58, venta: 0 },
@@ -36,11 +44,6 @@ const MIX = [
   { mes: 'MAY', servicio: 'Tamizaje', servicios: 31, venta: 0 },
   { mes: 'MAY', servicio: 'MyPrenatal', servicios: 8, venta: 0 },
   { mes: 'MAY', servicio: 'Seguridad Total', servicios: 24, venta: 0 },
-  { mes: 'JUN', servicio: 'UCU', servicios: 33, venta: 0 },
-  { mes: 'JUN', servicio: 'ADN', servicios: 9, venta: 0 },
-  { mes: 'JUN', servicio: 'Tamizaje', servicios: 14, venta: 0 },
-  { mes: 'JUN', servicio: 'MyPrenatal', servicios: 1, venta: 0 },
-  { mes: 'JUN', servicio: 'Seguridad Total', servicios: 35, venta: 0 },
 ]
 
 const VM = [
