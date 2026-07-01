@@ -37,6 +37,10 @@ export default async function CaptacionPage({ searchParams }: PageProps) {
   const ingByGrupo = GRUPOS.map(g => ({ g, total: sum(prospIng.filter((r: any) => r.grupo === g).map((r: any) => r.total ?? 0)) })).filter(x => x.total > 0)
   const prospRows = [...prospIng].sort((a: any, b: any) =>
     GRUPOS.indexOf(a.grupo) - GRUPOS.indexOf(b.grupo) || (b.total ?? 0) - (a.total ?? 0))
+  // Canal: Digital = MKT + Comercial + Anualidades · Offline = Visitadores
+  const CANAL_DE: Record<string, 'Digital' | 'Offline'> = { Visitadores: 'Offline', Comercial: 'Digital', MKT: 'Digital', Anualidades: 'Digital' }
+  const ingDigital = sum(prospIng.filter((r: any) => CANAL_DE[r.grupo] === 'Digital').map((r: any) => r.total ?? 0))
+  const ingOffline = sum(prospIng.filter((r: any) => CANAL_DE[r.grupo] === 'Offline').map((r: any) => r.total ?? 0))
 
   // Filtro por rep: une los nombres de Visita Médica (exec) y Captación por Rep (rep)
   const repOptions = [...new Set([
@@ -139,9 +143,20 @@ export default async function CaptacionPage({ searchParams }: PageProps) {
       {prospIng.length > 0 && (
         <GlassCard
           title="Prospección — Ingresados por Canal"
-          subtitle={`Total ingresados: ${fmt(totalIng)} · prospectos que ingresaron (no ventas)`}
+          subtitle={`Total ingresados: ${fmt(totalIng)} · Digital = MKT + Comercial + Anualidades · Offline = Visitadores`}
           style={{ marginTop: 16 }}
         >
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+            <div style={{ background: '#2563EB14', border: '1.4px solid #2563EB55', borderRadius: 'var(--r-sm)', padding: '12px 14px' }}>
+              <div className="eyebrow" style={{ marginBottom: 4 }}>Digital · MKT + Comercial + Anualidades</div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: '#2563EB' }}>{fmt(ingDigital)}</div>
+            </div>
+            <div style={{ background: '#D9770614', border: '1.4px solid #D9770655', borderRadius: 'var(--r-sm)', padding: '12px 14px' }}>
+              <div className="eyebrow" style={{ marginBottom: 4 }}>Offline · Visitadores</div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: '#D97706' }}>{fmt(ingOffline)}</div>
+            </div>
+          </div>
+          <div className="eyebrow" style={{ marginBottom: 6 }}>Detalle por grupo</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10, marginBottom: 14 }}>
             {ingByGrupo.map(({ g, total }) => (
               <div key={g} style={{ background: `${GRUPO_COLOR[g]}14`, border: `1.4px solid ${GRUPO_COLOR[g]}33`, borderRadius: 'var(--r-sm)', padding: '10px 12px' }}>
