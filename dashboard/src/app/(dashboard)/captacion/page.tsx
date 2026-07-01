@@ -8,12 +8,14 @@ import { MonthFilter } from '@/components/ui/month-filter'
 import { PlotlyChart } from '@/components/charts/plotly-chart'
 import { fmt, parseMeses, sum } from '@/lib/utils'
 import { CHART_COLORS } from '@/lib/constants'
+import { VendorFilter } from '@/components/ui/vendor-filter'
 
-interface PageProps { searchParams: Promise<{ meses?: string }> }
+interface PageProps { searchParams: Promise<{ meses?: string; vend?: string }> }
 
 export default async function CaptacionPage({ searchParams }: PageProps) {
   const params = await searchParams
   const sel = parseMeses(params.meses)
+  const selVend = parseMeses(params.vend)
 
   let capt: any[] = [], captRep: any[] = [], vmProsp: any[] = [], vm: any[] = [], clin: any[] = []
   try {
@@ -27,8 +29,17 @@ export default async function CaptacionPage({ searchParams }: PageProps) {
     ])
   } catch {}
 
+  // Filtro por rep: une los nombres de Visita Médica (exec) y Captación por Rep (rep)
+  const repOptions = [...new Set([
+    ...vm.map((r: any) => r.exec),
+    ...captRep.map((r: any) => r.rep),
+  ].filter(Boolean))].sort()
+  const inRep = (name: string) => !selVend.length || selVend.includes(name)
+  const vmF      = vm.filter((r: any) => inRep(r.exec))
+  const captRepF = captRep.filter((r: any) => inRep(r.rep))
+
   const totalCapt = sum(capt.map((r: any) => r.ventas ?? 0))
-  const totalVM   = sum(vm.map((r: any) => r.visitas ?? 0))
+  const totalVM   = sum(vmF.map((r: any) => r.visitas ?? 0))
 
   const captadores = [...new Set(capt.map((r: any) => r.captador))]
   const mesesCapt  = [...new Set(capt.map((r: any) => r.mes))].sort()
@@ -36,6 +47,7 @@ export default async function CaptacionPage({ searchParams }: PageProps) {
   return (
     <div>
       <Suspense><MonthFilter /></Suspense>
+      <Suspense><VendorFilter options={repOptions} label="Rep" /></Suspense>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12, marginBottom: 24 }}>
         <KpiBox label="Captaciones Totales" value={fmt(totalCapt)} color="var(--color-primary)" />
@@ -65,15 +77,15 @@ export default async function CaptacionPage({ searchParams }: PageProps) {
         </GlassCard>
 
         <GlassCard title="Visitas Médicas por Rep">
-          {vm.length > 0 ? (
+          {vmF.length > 0 ? (
             <Suspense fallback={<div style={{ height: 280 }} />}>
               <PlotlyChart
                 height={280}
-                data={[...new Set(vm.map((r: any) => r.exec))].map(exec => ({
+                data={[...new Set(vmF.map((r: any) => r.exec))].map(exec => ({
                   type: 'bar', name: String(exec),
-                  x: [...new Set(vm.map((r: any) => r.mes))].sort(),
-                  y: [...new Set(vm.map((r: any) => r.mes))].sort().map(m => {
-                    const r = vm.find((d: any) => d.mes === m && d.exec === exec)
+                  x: [...new Set(vmF.map((r: any) => r.mes))].sort(),
+                  y: [...new Set(vmF.map((r: any) => r.mes))].sort().map(m => {
+                    const r = vmF.find((d: any) => d.mes === m && d.exec === exec)
                     return r?.visitas ?? 0
                   }),
                 }))}
@@ -85,7 +97,7 @@ export default async function CaptacionPage({ searchParams }: PageProps) {
       </div>
 
       {/* Captación por rep table */}
-      {captRep.length > 0 && (
+      {captRepF.length > 0 && (
         <GlassCard title="Captación por Rep (Unidades por Servicio)">
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
@@ -97,7 +109,7 @@ export default async function CaptacionPage({ searchParams }: PageProps) {
                 </tr>
               </thead>
               <tbody>
-                {captRep.map((r: any, i: number) => (
+                {captRepF.map((r: any, i: number) => (
                   <tr key={i} style={{ borderBottom: '1px solid var(--color-border)', background: i % 2 ? 'rgba(255,255,255,.015)' : 'transparent' }}>
                     <td style={td}>{r.mes}</td>
                     <td style={{ ...td, fontWeight: 600 }}>{r.rep}</td>
