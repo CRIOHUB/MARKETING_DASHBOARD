@@ -15,6 +15,9 @@ const CONV = [
   { mes: 'MAR', mayo_mode: false, ing: 1876, val: 1443, serv: 99, monto: 18217, venta: 99, venta_online: 81, venta_offline: 18, cac: 0, roas: 0, cpl: 9.71, cpa: 184.01, cr1: 76.9, cr2: 6.9, cr3: 5.3, roi_pct: 0 },
   { mes: 'ABR', mayo_mode: false, ing: 1417, val: 1417, serv: 42, monto: 19968.47, venta: 45, venta_online: 37, venta_offline: 8, cac: 0, roas: 0, cpl: 14.09, cpa: 475.44, cr1: 100.0, cr2: 3.0, cr3: 3.0, roi_pct: 0 },
   { mes: 'MAY', mayo_mode: false, ing: 1607, val: 1050, serv: 120, monto: 20000, venta: 120, venta_online: 92, venta_offline: 28, cac: 0, roas: 0, cpl: 12.45, cpa: 166.67, cr1: 65.3, cr2: 11.4, cr3: 7.5, roi_pct: 0 },
+  // JUN — inversión (Monto) PENDIENTE de actualizar → monto/cpl/cpa en null (Plotly deja hueco).
+  // Ventas del Scorecard: online (digital) 56, total Criocord 67 → offline 11. serv 119 = mix sin Seg. Total.
+  { mes: 'JUN', mayo_mode: false, ing: 1413, val: 975, serv: 119, monto: null, venta: 67, venta_online: 56, venta_offline: 11, cac: 0, roas: 0, cpl: null, cpa: null, cr1: 69.0, cr2: 12.2, cr3: 8.4, roi_pct: 0 },
 ]
 
 const MIX = [
