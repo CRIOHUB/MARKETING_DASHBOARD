@@ -223,11 +223,14 @@ const VEND = [
   { exec: 'Heinrrich Stechmann', zona: 'Provincia', mes: 'MAY', ucu: 17, adn: 9, tamizaje: 11, myprenatal: 4, seg_total: 8, leads: 226, validos: 0 },
   { exec: 'Liseth Rondon', zona: 'Lima', mes: 'MAY', ucu: 17, adn: 3, tamizaje: 7, myprenatal: 3, seg_total: 7, leads: 197, validos: 0 },
   { exec: 'Carolina Vasques', zona: 'Lima', mes: 'MAY', ucu: 15, adn: 3, tamizaje: 6, myprenatal: 0, seg_total: 4, leads: 135, validos: 0 },
-  { exec: 'Adler Rosales', zona: 'Lima', mes: 'JUN', ucu: 8, adn: 3, tamizaje: 5, myprenatal: 0, seg_total: 15, leads: 0, validos: 0 },
-  { exec: 'Heinrrich Stechmann', zona: 'Provincia', mes: 'JUN', ucu: 6, adn: 3, tamizaje: 3, myprenatal: 1, seg_total: 4, leads: 0, validos: 0 },
-  { exec: 'Liseth Rondon', zona: 'Lima', mes: 'JUN', ucu: 9, adn: 2, tamizaje: 4, myprenatal: 0, seg_total: 9, leads: 0, validos: 0 },
-  { exec: 'Carolina Vasques', zona: 'Lima', mes: 'JUN', ucu: 9, adn: 1, tamizaje: 2, myprenatal: 0, seg_total: 7, leads: 0, validos: 0 },
-  { exec: 'Claudia', zona: 'Lima', mes: 'JUN', ucu: 1, adn: 0, tamizaje: 0, myprenatal: 0, seg_total: 0, leads: 0, validos: 0 },
+  // JUN — Ventas por Asesor Comercial (hoja JUN-26, SEGUIMIENTO PROSPECCION 2026.xlsx).
+  // seg_total = "Seguridad Total S" + "Seguridad Total T". ucu = Cordones.
+  { exec: 'Adler Rosales', zona: 'Lima', mes: 'JUN', ucu: 16, adn: 6, tamizaje: 9, myprenatal: 0, seg_total: 15, leads: 0, validos: 0 },
+  { exec: 'Heinrrich Stechmann', zona: 'Provincia', mes: 'JUN', ucu: 12, adn: 7, tamizaje: 9, myprenatal: 1, seg_total: 9, leads: 0, validos: 0 },
+  { exec: 'Liseth Rondon', zona: 'Lima', mes: 'JUN', ucu: 19, adn: 2, tamizaje: 6, myprenatal: 1, seg_total: 17, leads: 0, validos: 0 },
+  { exec: 'Carolina Vasques', zona: 'Lima', mes: 'JUN', ucu: 17, adn: 4, tamizaje: 6, myprenatal: 0, seg_total: 11, leads: 0, validos: 0 },
+  { exec: 'Claudia', zona: 'Lima', mes: 'JUN', ucu: 1, adn: 0, tamizaje: 0, myprenatal: 1, seg_total: 4, leads: 0, validos: 0 },
+  { exec: 'Oficina', zona: 'Lima', mes: 'JUN', ucu: 0, adn: 0, tamizaje: 0, myprenatal: 0, seg_total: 3, leads: 0, validos: 0 },
 ]
 
 const COMMS = [
