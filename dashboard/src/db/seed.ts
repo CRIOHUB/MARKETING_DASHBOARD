@@ -15,9 +15,9 @@ const CONV = [
   { mes: 'MAR', mayo_mode: false, ing: 1876, val: 1443, serv: 99, monto: 18217, venta: 99, venta_online: 81, venta_offline: 18, cac: 0, roas: 0, cpl: 9.71, cpa: 184.01, cr1: 76.9, cr2: 6.9, cr3: 5.3, roi_pct: 0 },
   { mes: 'ABR', mayo_mode: false, ing: 1417, val: 1417, serv: 42, monto: 19968.47, venta: 45, venta_online: 37, venta_offline: 8, cac: 0, roas: 0, cpl: 14.09, cpa: 475.44, cr1: 100.0, cr2: 3.0, cr3: 3.0, roi_pct: 0 },
   { mes: 'MAY', mayo_mode: false, ing: 1607, val: 1050, serv: 120, monto: 20000, venta: 120, venta_online: 92, venta_offline: 28, cac: 0, roas: 0, cpl: 12.45, cpa: 166.67, cr1: 65.3, cr2: 11.4, cr3: 7.5, roi_pct: 0 },
-  // JUN — inversión (Monto) PENDIENTE de actualizar → monto/cpl/cpa en null (Plotly deja hueco).
-  // Ventas del Scorecard: online (digital) 56, total Criocord 67 → offline 11. serv 119 = mix sin Seg. Total.
-  { mes: 'JUN', mayo_mode: false, ing: 1413, val: 975, serv: 119, monto: null, venta: 67, venta_online: 56, venta_offline: 11, cac: 0, roas: 0, cpl: null, cpa: null, cr1: 69.0, cr2: 12.2, cr3: 8.4, roi_pct: 0 },
+  // JUN — datos reales del consolidado: Monto 19,600; Captación vs Venta online 109 / offline 28 / total 137.
+  // serv 125 = mix sin Seg. Total (UCU73+ADN19+Tamiz30+MyPren3). cpl=monto/ing, cpa=monto/serv.
+  { mes: 'JUN', mayo_mode: false, ing: 1413, val: 975, serv: 125, monto: 19600, venta: 137, venta_online: 109, venta_offline: 28, cac: 268.5, roas: 0, cpl: 13.87, cpa: 156.80, cr1: 69.0, cr2: 12.8, cr3: 8.8, roi_pct: 0 },
 ]
 
 const MIX = [
@@ -48,7 +48,7 @@ const MIX = [
   { mes: 'MAY', servicio: 'MyPrenatal', servicios: 8, venta: 0 },
   { mes: 'MAY', servicio: 'Seguridad Total', servicios: 24, venta: 0 },
   // JUN — avance preliminar (servicios entregados por FFVV; online/atribución pendiente)
-  { mes: 'JUN', servicio: 'UCU', servicios: 67, venta: 0 },
+  { mes: 'JUN', servicio: 'UCU', servicios: 73, venta: 0 },
   { mes: 'JUN', servicio: 'ADN', servicios: 19, venta: 0 },
   { mes: 'JUN', servicio: 'Tamizaje', servicios: 30, venta: 0 },
   { mes: 'JUN', servicio: 'MyPrenatal', servicios: 3, venta: 0 },
@@ -228,10 +228,10 @@ const VEND = [
   { exec: 'Carolina Vasques', zona: 'Lima', mes: 'MAY', ucu: 15, adn: 3, tamizaje: 6, myprenatal: 0, seg_total: 4, leads: 135, validos: 0 },
   // JUN — Ventas por Asesor Comercial (hoja JUN-26, SEGUIMIENTO PROSPECCION 2026.xlsx).
   // seg_total = "Seguridad Total S" + "Seguridad Total T". ucu = Cordones.
-  { exec: 'Adler Rosales', zona: 'Lima', mes: 'JUN', ucu: 16, adn: 6, tamizaje: 9, myprenatal: 0, seg_total: 15, leads: 0, validos: 0 },
-  { exec: 'Heinrrich Stechmann', zona: 'Provincia', mes: 'JUN', ucu: 13, adn: 7, tamizaje: 9, myprenatal: 1, seg_total: 10, leads: 0, validos: 0 },
+  { exec: 'Adler Rosales', zona: 'Lima', mes: 'JUN', ucu: 17, adn: 6, tamizaje: 9, myprenatal: 0, seg_total: 15, leads: 0, validos: 0 },
+  { exec: 'Heinrrich Stechmann', zona: 'Provincia', mes: 'JUN', ucu: 17, adn: 7, tamizaje: 9, myprenatal: 1, seg_total: 10, leads: 0, validos: 0 },
   { exec: 'Liseth Rondon', zona: 'Lima', mes: 'JUN', ucu: 20, adn: 2, tamizaje: 6, myprenatal: 1, seg_total: 17, leads: 0, validos: 0 },
-  { exec: 'Carolina Vasques', zona: 'Lima', mes: 'JUN', ucu: 17, adn: 4, tamizaje: 6, myprenatal: 0, seg_total: 11, leads: 0, validos: 0 },
+  { exec: 'Carolina Vasques', zona: 'Lima', mes: 'JUN', ucu: 18, adn: 4, tamizaje: 6, myprenatal: 0, seg_total: 11, leads: 0, validos: 0 },
   { exec: 'Claudia', zona: 'Lima', mes: 'JUN', ucu: 1, adn: 0, tamizaje: 0, myprenatal: 1, seg_total: 4, leads: 0, validos: 0 },
   { exec: 'Oficina', zona: 'Lima', mes: 'JUN', ucu: 0, adn: 0, tamizaje: 0, myprenatal: 0, seg_total: 3, leads: 0, validos: 0 },
 ]
