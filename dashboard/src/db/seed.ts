@@ -45,11 +45,11 @@ const MIX = [
   { mes: 'MAY', servicio: 'MyPrenatal', servicios: 8, venta: 0 },
   { mes: 'MAY', servicio: 'Seguridad Total', servicios: 24, venta: 0 },
   // JUN — avance preliminar (servicios entregados por FFVV; online/atribución pendiente)
-  { mes: 'JUN', servicio: 'UCU', servicios: 40, venta: 0 },
-  { mes: 'JUN', servicio: 'ADN', servicios: 10, venta: 0 },
-  { mes: 'JUN', servicio: 'Tamizaje', servicios: 16, venta: 0 },
+  { mes: 'JUN', servicio: 'UCU', servicios: 67, venta: 0 },
+  { mes: 'JUN', servicio: 'ADN', servicios: 19, venta: 0 },
+  { mes: 'JUN', servicio: 'Tamizaje', servicios: 30, venta: 0 },
   { mes: 'JUN', servicio: 'MyPrenatal', servicios: 3, venta: 0 },
-  { mes: 'JUN', servicio: 'Seguridad Total', servicios: 45, venta: 0 },
+  { mes: 'JUN', servicio: 'Seguridad Total', servicios: 60, venta: 0 },
 ]
 
 const VM = [
@@ -226,8 +226,8 @@ const VEND = [
   // JUN — Ventas por Asesor Comercial (hoja JUN-26, SEGUIMIENTO PROSPECCION 2026.xlsx).
   // seg_total = "Seguridad Total S" + "Seguridad Total T". ucu = Cordones.
   { exec: 'Adler Rosales', zona: 'Lima', mes: 'JUN', ucu: 16, adn: 6, tamizaje: 9, myprenatal: 0, seg_total: 15, leads: 0, validos: 0 },
-  { exec: 'Heinrrich Stechmann', zona: 'Provincia', mes: 'JUN', ucu: 12, adn: 7, tamizaje: 9, myprenatal: 1, seg_total: 9, leads: 0, validos: 0 },
-  { exec: 'Liseth Rondon', zona: 'Lima', mes: 'JUN', ucu: 19, adn: 2, tamizaje: 6, myprenatal: 1, seg_total: 17, leads: 0, validos: 0 },
+  { exec: 'Heinrrich Stechmann', zona: 'Provincia', mes: 'JUN', ucu: 13, adn: 7, tamizaje: 9, myprenatal: 1, seg_total: 10, leads: 0, validos: 0 },
+  { exec: 'Liseth Rondon', zona: 'Lima', mes: 'JUN', ucu: 20, adn: 2, tamizaje: 6, myprenatal: 1, seg_total: 17, leads: 0, validos: 0 },
   { exec: 'Carolina Vasques', zona: 'Lima', mes: 'JUN', ucu: 17, adn: 4, tamizaje: 6, myprenatal: 0, seg_total: 11, leads: 0, validos: 0 },
   { exec: 'Claudia', zona: 'Lima', mes: 'JUN', ucu: 1, adn: 0, tamizaje: 0, myprenatal: 1, seg_total: 4, leads: 0, validos: 0 },
   { exec: 'Oficina', zona: 'Lima', mes: 'JUN', ucu: 0, adn: 0, tamizaje: 0, myprenatal: 0, seg_total: 3, leads: 0, validos: 0 },
@@ -370,14 +370,14 @@ const VM_PROSP = [
 // 2026.xlsx). Métrica = prospectos ingresados (no ventas). cordon = UCU.
 const PROSP_ING = [
   // JUN
-  { mes: 'JUN', grupo: 'Visitadores', captador: 'Marylin',  cordon: 150, tamizaje: 0, adn: 0,  myprenatal: 9, total: 159 },
+  { mes: 'JUN', grupo: 'Visitadores', captador: 'Marylin',  cordon: 151, tamizaje: 0, adn: 0,  myprenatal: 9, total: 160 },
   { mes: 'JUN', grupo: 'Visitadores', captador: 'Diana',    cordon: 16,  tamizaje: 0, adn: 0,  myprenatal: 4, total: 20 },
-  { mes: 'JUN', grupo: 'Visitadores', captador: 'Milagros', cordon: 226, tamizaje: 1, adn: 0,  myprenatal: 5, total: 232 },
+  { mes: 'JUN', grupo: 'Visitadores', captador: 'Milagros', cordon: 231, tamizaje: 1, adn: 0,  myprenatal: 6, total: 238 },
   { mes: 'JUN', grupo: 'Visitadores', captador: 'Velia',    cordon: 98,  tamizaje: 2, adn: 0,  myprenatal: 5, total: 105 },
   { mes: 'JUN', grupo: 'Comercial',   captador: 'Adler',    cordon: 2,   tamizaje: 0, adn: 0,  myprenatal: 0, total: 2 },
   { mes: 'JUN', grupo: 'Comercial',   captador: 'Heinrich', cordon: 5,   tamizaje: 0, adn: 0,  myprenatal: 0, total: 5 },
-  { mes: 'JUN', grupo: 'MKT',         captador: 'Daniel',   cordon: 393, tamizaje: 2, adn: 27, myprenatal: 2, total: 424 },
-  { mes: 'JUN', grupo: 'Anualidades', captador: 'Katherine',cordon: 1,   tamizaje: 0, adn: 0,  myprenatal: 0, total: 1 },
+  { mes: 'JUN', grupo: 'MKT',         captador: 'Daniel',   cordon: 408, tamizaje: 3, adn: 27, myprenatal: 2, total: 440 },
+  { mes: 'JUN', grupo: 'Anualidades', captador: 'Katherine',cordon: 2,   tamizaje: 0, adn: 0,  myprenatal: 0, total: 2 },
   { mes: 'JUN', grupo: 'Anualidades', captador: 'Marcos',   cordon: 3,   tamizaje: 0, adn: 0,  myprenatal: 0, total: 3 },
 ]
 
