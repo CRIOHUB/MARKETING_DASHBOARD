@@ -182,6 +182,19 @@ export const vmProspeccion = pgTable('vm_prospeccion', {
   detalle: text('detalle'),
 })
 
+// ── Prospección — Ingresados por captador / canal ────────────
+export const prospeccionIngresos = pgTable('prospeccion_ingresos', {
+  id: serial('id').primaryKey(),
+  mes: varchar('mes', { length: 3 }).notNull(),
+  grupo: varchar('grupo', { length: 50 }).notNull(), // Visitadores | Comercial | MKT | Anualidades
+  captador: varchar('captador', { length: 100 }).notNull(),
+  cordon: integer('cordon').default(0),
+  tamizaje: integer('tamizaje').default(0),
+  adn: integer('adn').default(0),
+  myprenatal: integer('myprenatal').default(0),
+  total: integer('total').default(0),
+})
+
 // ── Tipos exportados ──────────────────────────────────────────
 export type ConversionData = typeof conversionData.$inferSelect
 export type ServiceMix = typeof serviceMix.$inferSelect
@@ -193,3 +206,4 @@ export type Actividad = typeof actividades.$inferSelect
 export type Presupuesto = typeof presupuesto.$inferSelect
 export type CaptacionRep = typeof captacionRep.$inferSelect
 export type VmProspeccion = typeof vmProspeccion.$inferSelect
+export type ProspeccionIngresos = typeof prospeccionIngresos.$inferSelect

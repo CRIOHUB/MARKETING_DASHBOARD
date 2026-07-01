@@ -366,6 +366,21 @@ const VM_PROSP = [
   { mes: 'JUN', captador: 'Diana', canal: 'vm', leads: 4, captaciones: 0, detalle: 'Nueva VM Provincia (onboarding junio)' },
 ]
 
+// Prospección — INGRESADOS por captador/canal (hoja CRIOCORD, SEGUIMIENTO PROSPECCION
+// 2026.xlsx). Métrica = prospectos ingresados (no ventas). cordon = UCU.
+const PROSP_ING = [
+  // JUN
+  { mes: 'JUN', grupo: 'Visitadores', captador: 'Marylin',  cordon: 150, tamizaje: 0, adn: 0,  myprenatal: 9, total: 159 },
+  { mes: 'JUN', grupo: 'Visitadores', captador: 'Diana',    cordon: 16,  tamizaje: 0, adn: 0,  myprenatal: 4, total: 20 },
+  { mes: 'JUN', grupo: 'Visitadores', captador: 'Milagros', cordon: 226, tamizaje: 1, adn: 0,  myprenatal: 5, total: 232 },
+  { mes: 'JUN', grupo: 'Visitadores', captador: 'Velia',    cordon: 98,  tamizaje: 2, adn: 0,  myprenatal: 5, total: 105 },
+  { mes: 'JUN', grupo: 'Comercial',   captador: 'Adler',    cordon: 2,   tamizaje: 0, adn: 0,  myprenatal: 0, total: 2 },
+  { mes: 'JUN', grupo: 'Comercial',   captador: 'Heinrich', cordon: 5,   tamizaje: 0, adn: 0,  myprenatal: 0, total: 5 },
+  { mes: 'JUN', grupo: 'MKT',         captador: 'Daniel',   cordon: 393, tamizaje: 2, adn: 27, myprenatal: 2, total: 424 },
+  { mes: 'JUN', grupo: 'Anualidades', captador: 'Katherine',cordon: 1,   tamizaje: 0, adn: 0,  myprenatal: 0, total: 1 },
+  { mes: 'JUN', grupo: 'Anualidades', captador: 'Marcos',   cordon: 3,   tamizaje: 0, adn: 0,  myprenatal: 0, total: 3 },
+]
+
 // ─── Seed function ────────────────────────────────────────────────────────────
 
 export async function seed() {
@@ -376,6 +391,7 @@ export async function seed() {
     schema.clinicas, schema.captacion, schema.presupuesto, schema.historialGastos,
     schema.vendedores, schema.comunicaciones, schema.actividades, schema.proyectos,
     schema.inversionBruta, schema.captacionRep, schema.vmProspeccion,
+    schema.prospeccionIngresos,
   ]
   for (const t of allTables) {
     try { await db.delete(t) } catch (e: any) { console.error('delete fail', e?.message ?? e) }
@@ -455,6 +471,11 @@ export async function seed() {
   await step('vm_prospeccion', () => db.insert(schema.vmProspeccion).values(VM_PROSP.map(d => ({
     mes: d.mes, captador: d.captador, canal: d.canal,
     leads: d.leads, captaciones: d.captaciones, detalle: d.detalle,
+  }))))
+
+  await step('prospeccion_ingresos', () => db.insert(schema.prospeccionIngresos).values(PROSP_ING.map(d => ({
+    mes: d.mes, grupo: d.grupo, captador: d.captador,
+    cordon: d.cordon, tamizaje: d.tamizaje, adn: d.adn, myprenatal: d.myprenatal, total: d.total,
   }))))
 
   console.log('\nSeed complete.', results)
