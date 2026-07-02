@@ -57,7 +57,7 @@ export const SCORECARD_DEF = {
     {
       num: '④', title: 'CONVERSIÓN (baseline 2025)',
       kpis: [
-        { label: 'Lead-to-Client Conv.', fmt: 'pct', better: 'higher', meta: [3.25,3.25,3.25,3.25,3.25,3.25,3.25,3.25,3.25,3.25,3.25,3.25], real: [3.34,2.37,2.95,1.90,3.39,6.87], metaFy: 3.25, realFy: 3.47 },
+        { label: 'Lead-to-Client Conv.', fmt: 'pct', better: 'higher', meta: [3.25,3.25,3.25,3.25,3.25,3.25,3.25,3.25,3.25,3.25,3.25,3.25], real: [3.34,2.37,2.95,1.90,3.39,4.60], metaFy: 3.25, realFy: 3.5 },
         { label: 'CR Offline', fmt: 'pct', better: 'higher', meta: [2,2,2,2,2,2,2,2,2,2,2,2], real: [2.50,1.17,1.36,1.24,2.79,2.10], metaFy: 2, realFy: 1.86 },
       ],
     },
