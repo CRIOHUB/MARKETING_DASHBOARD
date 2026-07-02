@@ -395,6 +395,13 @@ const VM_PROSP = [
 // Prospección — INGRESADOS por captador/canal (hoja CRIOCORD, SEGUIMIENTO PROSPECCION
 // 2026.xlsx). Métrica = prospectos ingresados (no ventas). cordon = UCU.
 const PROSP_ING = [
+  // ABR / MAY — solo Visitadores (offline), para el comparativo mensual de Prospección Offline
+  { mes: 'ABR', grupo: 'Visitadores', captador: 'Marylin',  cordon: 403, tamizaje: 0, adn: 0, myprenatal: 0, total: 403 },
+  { mes: 'ABR', grupo: 'Visitadores', captador: 'Milagros', cordon: 266, tamizaje: 0, adn: 0, myprenatal: 1, total: 267 },
+  { mes: 'ABR', grupo: 'Visitadores', captador: 'Velia',    cordon: 213, tamizaje: 0, adn: 0, myprenatal: 2, total: 215 },
+  { mes: 'MAY', grupo: 'Visitadores', captador: 'Marylin',  cordon: 158, tamizaje: 1, adn: 0, myprenatal: 2, total: 161 },
+  { mes: 'MAY', grupo: 'Visitadores', captador: 'Milagros', cordon: 238, tamizaje: 2, adn: 1, myprenatal: 3, total: 244 },
+  { mes: 'MAY', grupo: 'Visitadores', captador: 'Velia',    cordon: 94,  tamizaje: 1, adn: 0, myprenatal: 2, total: 97 },
   // JUN
   { mes: 'JUN', grupo: 'Visitadores', captador: 'Marylin',  cordon: 151, tamizaje: 0, adn: 0,  myprenatal: 9, total: 160 },
   { mes: 'JUN', grupo: 'Visitadores', captador: 'Diana',    cordon: 16,  tamizaje: 0, adn: 0,  myprenatal: 4, total: 20 },

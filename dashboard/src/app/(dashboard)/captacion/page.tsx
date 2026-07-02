@@ -26,21 +26,33 @@ export default async function CaptacionPage({ searchParams }: PageProps) {
       f(vmProspeccion, vmProspeccion.mes),
       f(visitaMedica, visitaMedica.mes),
       db.select().from(clinicas),
-      f(prospeccionIngresos, prospeccionIngresos.mes),
+      db.select().from(prospeccionIngresos), // sin filtro de mes (comparativo offline)
     ])
   } catch {}
 
-  // Prospección — ingresados por grupo/captador
-  const GRUPOS = ['Visitadores', 'Comercial', 'MKT', 'Anualidades']
-  const GRUPO_COLOR: Record<string, string> = { Visitadores: '#0B5394', Comercial: '#16A085', MKT: '#E67E22', Anualidades: '#8E44AD' }
-  const totalIng = sum(prospIng.map((r: any) => r.total ?? 0))
-  const ingByGrupo = GRUPOS.map(g => ({ g, total: sum(prospIng.filter((r: any) => r.grupo === g).map((r: any) => r.total ?? 0)) })).filter(x => x.total > 0)
-  const prospRows = [...prospIng].sort((a: any, b: any) =>
-    GRUPOS.indexOf(a.grupo) - GRUPOS.indexOf(b.grupo) || (b.total ?? 0) - (a.total ?? 0))
-  // Canal: Digital = MKT + Comercial + Anualidades · Offline = Visitadores
-  const CANAL_DE: Record<string, 'Digital' | 'Offline'> = { Visitadores: 'Offline', Comercial: 'Digital', MKT: 'Digital', Anualidades: 'Digital' }
-  const ingDigital = sum(prospIng.filter((r: any) => CANAL_DE[r.grupo] === 'Digital').map((r: any) => r.total ?? 0))
-  const ingOffline = sum(prospIng.filter((r: any) => CANAL_DE[r.grupo] === 'Offline').map((r: any) => r.total ?? 0))
+  // ── Prospección OFFLINE (Visitadores): comparativo por mes + detalle del último mes ──
+  const MESES_ORD = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC']
+  const offline = prospIng.filter((r: any) => r.grupo === 'Visitadores')
+  const offMonths = MESES_ORD.filter(m => offline.some((r: any) => r.mes === m))
+  const totOf = (m?: string) => m ? sum(offline.filter((r: any) => r.mes === m).map((r: any) => r.total ?? 0)) : 0
+  const offByMonth = offMonths.map(m => ({ mes: m, total: totOf(m) }))
+  const lastMes  = offMonths[offMonths.length - 1] ?? ''
+  const prevMes  = offMonths[offMonths.length - 2]
+  const prev2Mes = offMonths[offMonths.length - 3]
+  const totLast  = totOf(lastMes)
+  const deltaPct = (base?: string) => { const b = totOf(base); return b ? Math.round(((totLast - b) / b) * 1000) / 10 : null }
+  const dPrev  = deltaPct(prevMes)
+  const dPrev2 = deltaPct(prev2Mes)
+  const offRep = offline.filter((r: any) => r.mes === lastMes)
+    .map((r: any) => ({ rep: r.captador, total: r.total ?? 0 }))
+    .sort((a: any, b: any) => b.total - a.total)
+  const PROD = [
+    { key: 'cordon',     label: 'Cordón',     color: '#0B5394' },
+    { key: 'myprenatal', label: 'MyPrenatal', color: '#16A085' },
+    { key: 'tamizaje',   label: 'Tamizaje',   color: '#5B9BD5' },
+    { key: 'adn',        label: 'ADN',        color: '#A6A6A6' },
+  ]
+  const offProd = PROD.map(p => ({ ...p, val: sum(offline.filter((r: any) => r.mes === lastMes).map((r: any) => r[p.key] ?? 0)) }))
 
   // Filtro por rep: une los nombres de Visita Médica (exec) y Captación por Rep (rep)
   const repOptions = [...new Set([
@@ -140,64 +152,74 @@ export default async function CaptacionPage({ searchParams }: PageProps) {
         </GlassCard>
       )}
 
-      {prospIng.length > 0 && (
+      {offline.length > 0 && (
         <GlassCard
-          title="Prospección — Ingresados por Canal"
-          subtitle={`Total ingresados: ${fmt(totalIng)} · Digital = MKT + Comercial + Anualidades · Offline = Visitadores`}
+          title="Prospección Offline — Resumen de ingresos"
+          subtitle={`Ingresos por prospección offline (Visitadores) · ${offMonths.join(' – ')}`}
           style={{ marginTop: 16 }}
         >
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
-            <div style={{ background: '#2563EB14', border: '1.4px solid #2563EB55', borderRadius: 'var(--r-sm)', padding: '12px 14px' }}>
-              <div className="eyebrow" style={{ marginBottom: 4 }}>Digital · MKT + Comercial + Anualidades</div>
-              <div style={{ fontSize: 26, fontWeight: 800, color: '#2563EB' }}>{fmt(ingDigital)}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
+            <div style={{ background: '#0B539414', border: '1.4px solid #0B539455', borderRadius: 'var(--r-sm)', padding: '12px 16px' }}>
+              <div className="eyebrow" style={{ marginBottom: 4 }}>Total ingresos {lastMes}</div>
+              <div style={{ fontSize: 30, fontWeight: 800, color: '#0B5394' }}>{fmt(totLast)}</div>
             </div>
-            <div style={{ background: '#D9770614', border: '1.4px solid #D9770655', borderRadius: 'var(--r-sm)', padding: '12px 14px' }}>
-              <div className="eyebrow" style={{ marginBottom: 4 }}>Offline · Visitadores</div>
-              <div style={{ fontSize: 26, fontWeight: 800, color: '#D97706' }}>{fmt(ingOffline)}</div>
+            {dPrev != null && <DeltaChip value={dPrev} label={`vs ${prevMes}`} />}
+            {dPrev2 != null && <DeltaChip value={dPrev2} label={`vs ${prev2Mes}`} />}
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+            <div>
+              <div className="eyebrow" style={{ marginBottom: 6 }}>Ingresos Offline por mes</div>
+              <Suspense fallback={<div style={{ height: 260 }} />}>
+                <PlotlyChart height={260} data={[{
+                  type: 'bar', x: offByMonth.map(x => x.mes), y: offByMonth.map(x => x.total),
+                  text: offByMonth.map(x => String(x.total)), textposition: 'outside',
+                  marker: { color: '#0B5394' },
+                }]} />
+              </Suspense>
+            </div>
+            <div>
+              <div className="eyebrow" style={{ marginBottom: 6 }}>Ingresos por representante · {lastMes}</div>
+              <Suspense fallback={<div style={{ height: 260 }} />}>
+                <PlotlyChart height={260} data={[{
+                  type: 'bar', orientation: 'h',
+                  x: offRep.map(r => r.total).reverse(),
+                  y: offRep.map(r => r.rep).reverse(),
+                  text: offRep.map(r => `${r.total} (${totLast ? (Math.round(r.total / totLast * 1000) / 10).toFixed(1) : 0}%)`).reverse(),
+                  textposition: 'outside', marker: { color: '#0B5394' },
+                }]} layout={{ margin: { l: 70 } }} />
+              </Suspense>
             </div>
           </div>
-          <div className="eyebrow" style={{ marginBottom: 6 }}>Detalle por grupo</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10, marginBottom: 14 }}>
-            {ingByGrupo.map(({ g, total }) => (
-              <div key={g} style={{ background: `${GRUPO_COLOR[g]}14`, border: `1.4px solid ${GRUPO_COLOR[g]}33`, borderRadius: 'var(--r-sm)', padding: '10px 12px' }}>
-                <div className="eyebrow" style={{ marginBottom: 4 }}>{g}</div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: GRUPO_COLOR[g] }}>{fmt(total)}</div>
-              </div>
-            ))}
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'start' }}>
+
+          <div className="eyebrow" style={{ marginBottom: 6 }}>Distribución por producto · {lastMes}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'center' }}>
             <Suspense fallback={<div style={{ height: 260 }} />}>
-              <PlotlyChart
-                height={260}
-                data={[{
-                  type: 'bar',
-                  x: ingByGrupo.map(x => x.g),
-                  y: ingByGrupo.map(x => x.total),
-                  text: ingByGrupo.map(x => String(x.total)),
-                  textposition: 'outside',
-                  marker: { color: ingByGrupo.map(x => GRUPO_COLOR[x.g]) },
-                }]}
-              />
+              <PlotlyChart height={260} data={[{
+                type: 'pie', hole: 0.6,
+                labels: offProd.map(p => p.label), values: offProd.map(p => p.val),
+                marker: { colors: offProd.map(p => p.color) },
+                textinfo: 'percent', textfont: { size: 12 },
+              }]} layout={{ showlegend: false }} />
             </Suspense>
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
-                    {['Grupo','Captador','Cordón','Tamizaje','ADN','MyPrenatal','Total'].map(h => (
-                      <th key={h} style={{ padding: '7px 10px', textAlign: 'left', color: 'var(--color-muted)', fontWeight: 600, fontSize: 10 }}>{h}</th>
-                    ))}
+                    <th style={{ padding: '7px 10px', textAlign: 'left', color: 'var(--color-muted)', fontWeight: 600, fontSize: 11 }}>Producto</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'right', color: 'var(--color-muted)', fontWeight: 600, fontSize: 11 }}>Ingresos</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'right', color: 'var(--color-muted)', fontWeight: 600, fontSize: 11 }}>% del total</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {prospRows.map((r: any, i: number) => (
-                    <tr key={i} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                      <td style={{ ...td, color: GRUPO_COLOR[r.grupo], fontWeight: 600 }}>{r.grupo}</td>
-                      <td style={{ ...td, fontWeight: 600 }}>{r.captador}</td>
-                      <td style={td}>{r.cordon}</td>
-                      <td style={td}>{r.tamizaje}</td>
-                      <td style={td}>{r.adn}</td>
-                      <td style={td}>{r.myprenatal}</td>
-                      <td style={{ ...td, fontWeight: 700, color: 'var(--color-primary)' }}>{r.total}</td>
+                  {offProd.map(p => (
+                    <tr key={p.label} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                      <td style={{ ...td, fontWeight: 600 }}>
+                        <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: p.color, marginRight: 8 }} />
+                        {p.label}
+                      </td>
+                      <td style={{ ...td, textAlign: 'right', fontWeight: 700 }}>{fmt(p.val)}</td>
+                      <td style={{ ...td, textAlign: 'right', color: 'var(--color-muted)' }}>{totLast ? (Math.round(p.val / totLast * 1000) / 10).toFixed(1) : '0.0'}%</td>
                     </tr>
                   ))}
                 </tbody>
@@ -212,5 +234,16 @@ export default async function CaptacionPage({ searchParams }: PageProps) {
 
 function EmptyState() {
   return <div style={{ height: 280, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-muted)', fontSize: 12 }}>Sin datos</div>
+}
+
+function DeltaChip({ value, label }: { value: number; label: string }) {
+  const up = value >= 0
+  const color = up ? '#16A34A' : '#DC2626'
+  return (
+    <div style={{ background: `${color}14`, border: `1.4px solid ${color}55`, borderRadius: 'var(--r-sm)', padding: '8px 14px', textAlign: 'center' }}>
+      <div style={{ fontSize: 16, fontWeight: 800, color }}>{up ? '▲ +' : '▼ '}{value.toFixed(1)}%</div>
+      <div className="eyebrow">{label}</div>
+    </div>
+  )
 }
 const td: React.CSSProperties = { padding: '8px 10px', color: 'var(--color-foreground)' }
