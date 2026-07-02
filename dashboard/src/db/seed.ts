@@ -10,14 +10,14 @@ import * as schema from './schema'
 // roas=0 and roi_pct=0 (Venta S/ and ROAS removed from the UI).
 // Derived: cr1=val/ing, cr2=serv/val, cr3=serv/ing, cpl=monto/ing, cpa=monto/serv.
 const CONV = [
-  { mes: 'ENE', mayo_mode: false, ing: 2333, val: 1765, serv: 139, monto: 12000, venta: 137, venta_online: 97, venta_offline: 40, cac: 0, roas: 0, cpl: 5.14, cpa: 86.33, cr1: 75.7, cr2: 7.9, cr3: 6.0, roi_pct: 0 },
-  { mes: 'FEB', mayo_mode: false, ing: 2343, val: 1696, serv: 76, monto: 12423, venta: 66, venta_online: 43, venta_offline: 23, cac: 0, roas: 0, cpl: 5.30, cpa: 163.46, cr1: 72.4, cr2: 4.5, cr3: 3.2, roi_pct: 0 },
-  { mes: 'MAR', mayo_mode: false, ing: 1876, val: 1443, serv: 99, monto: 18217, venta: 99, venta_online: 81, venta_offline: 18, cac: 0, roas: 0, cpl: 9.71, cpa: 184.01, cr1: 76.9, cr2: 6.9, cr3: 5.3, roi_pct: 0 },
-  { mes: 'ABR', mayo_mode: false, ing: 1417, val: 1417, serv: 42, monto: 19968.47, venta: 45, venta_online: 37, venta_offline: 8, cac: 0, roas: 0, cpl: 14.09, cpa: 475.44, cr1: 100.0, cr2: 3.0, cr3: 3.0, roi_pct: 0 },
-  { mes: 'MAY', mayo_mode: false, ing: 1607, val: 1050, serv: 120, monto: 20000, venta: 120, venta_online: 92, venta_offline: 28, cac: 0, roas: 0, cpl: 12.45, cpa: 166.67, cr1: 65.3, cr2: 11.4, cr3: 7.5, roi_pct: 0 },
-  // JUN — datos reales del consolidado: Monto 19,600; Captación vs Venta online 109 / offline 28 / total 137.
-  // serv 125 = mix sin Seg. Total (UCU73+ADN19+Tamiz30+MyPren3). cpl=monto/ing, cpa=monto/serv.
-  { mes: 'JUN', mayo_mode: false, ing: 1413, val: 975, serv: 125, monto: 19600, venta: 137, venta_online: 109, venta_offline: 28, cac: 268.5, roas: 0, cpl: 13.87, cpa: 156.80, cr1: 69.0, cr2: 12.8, cr3: 8.8, roi_pct: 0 },
+  // monto = GASTO DE PROSPECCIÓN (pauta Meta+Google+TikTok, hoja MKTCC 2026), NO el gasto MKT total.
+  // CPL=monto/ing (leads), CPA=monto/serv. venta_online/offline = Captación vs Venta (canal).
+  { mes: 'ENE', mayo_mode: false, ing: 2333, val: 1765, serv: 139, monto: 3635, venta: 137, venta_online: 97, venta_offline: 40, cac: 0, roas: 0, cpl: 1.56, cpa: 26.15, cr1: 75.7, cr2: 7.9, cr3: 6.0, roi_pct: 0 },
+  { mes: 'FEB', mayo_mode: false, ing: 2343, val: 1696, serv: 76, monto: 4153, venta: 66, venta_online: 43, venta_offline: 23, cac: 0, roas: 0, cpl: 1.77, cpa: 54.64, cr1: 72.4, cr2: 4.5, cr3: 3.2, roi_pct: 0 },
+  { mes: 'MAR', mayo_mode: false, ing: 1876, val: 1443, serv: 99, monto: 5381, venta: 99, venta_online: 81, venta_offline: 18, cac: 0, roas: 0, cpl: 2.87, cpa: 54.35, cr1: 76.9, cr2: 6.9, cr3: 5.3, roi_pct: 0 },
+  { mes: 'ABR', mayo_mode: false, ing: 1417, val: 1417, serv: 42, monto: 6125, venta: 45, venta_online: 37, venta_offline: 8, cac: 0, roas: 0, cpl: 4.32, cpa: 145.83, cr1: 100.0, cr2: 3.0, cr3: 3.0, roi_pct: 0 },
+  { mes: 'MAY', mayo_mode: false, ing: 1607, val: 1050, serv: 120, monto: 7059, venta: 120, venta_online: 92, venta_offline: 28, cac: 0, roas: 0, cpl: 4.39, cpa: 58.83, cr1: 65.3, cr2: 11.4, cr3: 7.5, roi_pct: 0 },
+  { mes: 'JUN', mayo_mode: false, ing: 1413, val: 975, serv: 125, monto: 5500, venta: 137, venta_online: 109, venta_offline: 28, cac: 268.5, roas: 0, cpl: 3.89, cpa: 44.00, cr1: 69.0, cr2: 12.8, cr3: 8.8, roi_pct: 0 },
 ]
 
 const MIX = [

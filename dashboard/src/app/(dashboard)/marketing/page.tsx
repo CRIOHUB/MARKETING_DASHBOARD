@@ -23,7 +23,7 @@ export default async function MarketingPage({ searchParams }: PageProps) {
 
   const meses = conv.map((r: any) => r.mes)
   const avgCpl  = avg(conv.map((r: any) => r.cpl ?? 0))
-  const avgCpa  = avg(conv.map((r: any) => r.cpa ?? 0))
+  const avgCpa  = avg(conv.map((r: any) => (r.venta ? r.monto / r.venta : 0)))
   const avgRoas = avg(conv.map((r: any) => r.roas ?? 0))
   const avgCr3  = avg(conv.map((r: any) => r.cr3 ?? 0))
   const avgCr1  = avg(conv.map((r: any) => r.cr1 ?? 0))
@@ -56,14 +56,14 @@ export default async function MarketingPage({ searchParams }: PageProps) {
           ) : <EmptyState />}
         </GlassCard>
 
-        <GlassCard title="CPA — Costo por Adquisición (S/)">
+        <GlassCard title="CPA — Costo por Adquisición (S/)" subtitle="Solo pauta (Meta+Google+TikTok) ÷ ventas. Offline (VM) = captación orgánica, sin costo de pauta.">
           {conv.length > 0 ? (
             <Suspense fallback={<div style={{ height: 260 }} />}>
-              <PlotlyChart height={260} data={[{
-                type: 'bar', name: 'CPA', x: meses,
-                y: conv.map((r: any) => r.cpa),
-                marker: { color: '#D97706' },
-              }]} />
+              <PlotlyChart height={260} data={[
+                { type: 'bar', name: 'Total', x: meses, y: conv.map((r: any) => (r.venta ? +(r.monto / r.venta).toFixed(1) : null)), marker: { color: '#D97706' } },
+                { type: 'bar', name: 'Online', x: meses, y: conv.map((r: any) => (r.ventaOnline ? +(r.monto / r.ventaOnline).toFixed(1) : null)), marker: { color: '#2563EB' } },
+                { type: 'bar', name: 'Offline', x: meses, y: conv.map((r: any) => (r.ventaOffline != null ? 0 : null)), marker: { color: '#16A085' } },
+              ]} layout={{ barmode: 'group' }} />
             </Suspense>
           ) : <EmptyState />}
         </GlassCard>
