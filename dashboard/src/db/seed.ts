@@ -163,12 +163,24 @@ const CAPT = [
   { captador: 'VM — Velia', canal: 'vm', mes: 'ABR', ventas: 1 },
 ]
 
+// Presupuesto MKT CrioCord — hoja "MKTCC 2026" de PPTO CONSOLIDADO MKT DW.
+// online = pauta/digital (Meta, Google, TikTok, Brevo, Wati, herramientas).
+// offline = actividades + materiales físicos (papelería, eventos, viajes, caja chica, campañas).
+// gastado = TOTAL GASTO (real); ppto_plan = TOTAL PRESUPUESTO; cumpl = gasto/ppto.
+// Meses ENE–JUN = ejecución real; JUL–DIC solo presupuesto (aún no ejecutado).
 const PPTO = [
-  { mes: 'ENE', online: 9624.25, offline: 2375.75, eventos: 0, gastado: 12000, gasto_total: 13200, ppto_plan: 12000, cumpl_pct: 110 },
-  { mes: 'FEB', online: 9624.25, offline: 2798.75, eventos: 0, gastado: 12423, gasto_total: 13623, ppto_plan: 14000, cumpl_pct: 97.3 },
-  { mes: 'MAR', online: 9624.25, offline: 2730.09, eventos: 5862.66, gastado: 18217, gasto_total: 19617, ppto_plan: 18000, cumpl_pct: 109 },
-  { mes: 'ABR', online: 9624.25, offline: 2730.09, eventos: 7614.13, gastado: 19968.47, gasto_total: 21368.47, ppto_plan: 20000, cumpl_pct: 106.8 },
-  { mes: 'MAY', online: 9624.25, offline: 2730.09, eventos: 0, gastado: 12354.34, gasto_total: 13754.34, ppto_plan: 23429, cumpl_pct: 58.7 },
+  { mes: 'ENE', online: 7413, offline: 25369, eventos: 0, gastado: 32872, gasto_total: 32872, ppto_plan: 48390, cumpl_pct: 67.9 },
+  { mes: 'FEB', online: 7208, offline: 13086, eventos: 0, gastado: 20385, gasto_total: 20385, ppto_plan: 27258, cumpl_pct: 74.8 },
+  { mes: 'MAR', online: 9497, offline: 57642, eventos: 0, gastado: 67230, gasto_total: 67230, ppto_plan: 30535, cumpl_pct: 220.2 },
+  { mes: 'ABR', online: 10233, offline: 29661, eventos: 0, gastado: 39998, gasto_total: 39998, ppto_plan: 43172, cumpl_pct: 92.6 },
+  { mes: 'MAY', online: 12540, offline: 11000, eventos: 0, gastado: 23644, gasto_total: 23644, ppto_plan: 23429, cumpl_pct: 100.9 },
+  { mes: 'JUN', online: 10100, offline: 11675, eventos: 0, gastado: 21878, gasto_total: 21878, ppto_plan: 30030, cumpl_pct: 72.9 },
+  { mes: 'JUL', online: 0, offline: 0, eventos: 0, gastado: 0, gasto_total: 0, ppto_plan: 39752, cumpl_pct: 0 },
+  { mes: 'AGO', online: 0, offline: 0, eventos: 0, gastado: 0, gasto_total: 0, ppto_plan: 37724, cumpl_pct: 0 },
+  { mes: 'SEP', online: 0, offline: 0, eventos: 0, gastado: 0, gasto_total: 0, ppto_plan: 23501, cumpl_pct: 0 },
+  { mes: 'OCT', online: 0, offline: 0, eventos: 0, gastado: 0, gasto_total: 0, ppto_plan: 49404, cumpl_pct: 0 },
+  { mes: 'NOV', online: 0, offline: 0, eventos: 0, gastado: 0, gasto_total: 0, ppto_plan: 16651, cumpl_pct: 0 },
+  { mes: 'DIC', online: 0, offline: 0, eventos: 0, gastado: 0, gasto_total: 0, ppto_plan: 16621, cumpl_pct: 0 },
 ]
 
 const HIST = [
