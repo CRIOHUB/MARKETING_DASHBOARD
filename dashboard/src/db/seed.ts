@@ -71,6 +71,9 @@ const VM = [
   { mes: 'ABR', exec: 'Milagros', zona: 'Lima', visitas: 143, pot_uso: 0, notas: 'Delgado 28, San Felipe 24, SANNA Golf 23' },
   { mes: 'ABR', exec: 'Marylin', zona: 'Lima', visitas: 139, pot_uso: 0, notas: 'Cl.Int.SB 27, SANNA SB 24, RP 12' },
   { mes: 'ABR', exec: 'Velia', zona: 'Arequipa', visitas: 131, pot_uso: 0, notas: 'Pol.EsSalud Yanahuara 13, San Pablo AQP 13' },
+  { mes: 'JUN', exec: 'Marylin', zona: 'Lima', visitas: 58, pot_uso: 0, notas: 'Corte parcial junio' },
+  { mes: 'JUN', exec: 'Milagros', zona: 'Lima', visitas: 25, pot_uso: 0, notas: 'Corte parcial junio' },
+  { mes: 'JUN', exec: 'Velia', zona: 'Arequipa', visitas: 60, pot_uso: 0, notas: 'Corte parcial junio' },
 ]
 
 const VMCAT = [
@@ -161,6 +164,10 @@ const CAPT = [
   { captador: 'VM — Milagros Herrera', canal: 'vm', mes: 'ABR', ventas: 8 },
   { captador: 'VM — Marylin', canal: 'vm', mes: 'ABR', ventas: 3 },
   { captador: 'VM — Velia', canal: 'vm', mes: 'ABR', ventas: 1 },
+  { captador: 'Digital / MKT + Comercial', canal: 'digital', mes: 'JUN', ventas: 109 },
+  { captador: 'VM — Marylin', canal: 'vm', mes: 'JUN', ventas: 14 },
+  { captador: 'VM — Milagros', canal: 'vm', mes: 'JUN', ventas: 11 },
+  { captador: 'VM — Velia', canal: 'vm', mes: 'JUN', ventas: 3 },
 ]
 
 // Presupuesto MKT CrioCord — hoja "MKTCC 2026" de PPTO CONSOLIDADO MKT DW.
@@ -357,6 +364,10 @@ const CAPT_REP = [
   { mes: 'MAY', rep: 'Milagros H', canal: 'offline', ucu: 6, tamizaje: 3, adn: 2, myprenatal: 3, total: 14 },
   { mes: 'MAY', rep: 'Marylin', canal: 'offline', ucu: 7, tamizaje: 1, adn: 0, myprenatal: 2, total: 10 },
   { mes: 'MAY', rep: 'Velia', canal: 'offline', ucu: 1, tamizaje: 0, adn: 0, myprenatal: 3, total: 4 },
+  { mes: 'JUN', rep: 'MKT CrioCord', canal: 'online', ucu: 58, tamizaje: 29, adn: 22, myprenatal: 0, total: 109 },
+  { mes: 'JUN', rep: 'Marylin', canal: 'offline', ucu: 9, tamizaje: 2, adn: 3, myprenatal: 0, total: 14 },
+  { mes: 'JUN', rep: 'Milagros', canal: 'offline', ucu: 5, tamizaje: 2, adn: 2, myprenatal: 2, total: 11 },
+  { mes: 'JUN', rep: 'Velia', canal: 'offline', ucu: 1, tamizaje: 0, adn: 0, myprenatal: 2, total: 3 },
 ]
 
 const VM_PROSP = [
