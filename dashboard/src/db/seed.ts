@@ -12,12 +12,12 @@ import * as schema from './schema'
 const CONV = [
   // monto = GASTO DE PROSPECCIÓN (pauta Meta+Google+TikTok, hoja MKTCC 2026), NO el gasto MKT total.
   // CPL=monto/ing (leads), CPA=monto/serv. venta_online/offline = Captación vs Venta (canal).
-  { mes: 'ENE', mayo_mode: false, ing: 2333, val: 1765, serv: 139, monto: 3635, venta: 137, venta_online: 97, venta_offline: 40, cac: 0, roas: 0, cpl: 1.56, cpa: 26.15, cr1: 75.7, cr2: 7.9, cr3: 6.0, roi_pct: 0 },
-  { mes: 'FEB', mayo_mode: false, ing: 2343, val: 1696, serv: 76, monto: 4153, venta: 66, venta_online: 43, venta_offline: 23, cac: 0, roas: 0, cpl: 1.77, cpa: 54.64, cr1: 72.4, cr2: 4.5, cr3: 3.2, roi_pct: 0 },
-  { mes: 'MAR', mayo_mode: false, ing: 1876, val: 1443, serv: 99, monto: 5381, venta: 99, venta_online: 81, venta_offline: 18, cac: 0, roas: 0, cpl: 2.87, cpa: 54.35, cr1: 76.9, cr2: 6.9, cr3: 5.3, roi_pct: 0 },
-  { mes: 'ABR', mayo_mode: false, ing: 1417, val: 1417, serv: 42, monto: 6125, venta: 45, venta_online: 37, venta_offline: 8, cac: 0, roas: 0, cpl: 4.32, cpa: 145.83, cr1: 100.0, cr2: 3.0, cr3: 3.0, roi_pct: 0 },
-  { mes: 'MAY', mayo_mode: false, ing: 1607, val: 1050, serv: 120, monto: 7059, venta: 120, venta_online: 92, venta_offline: 28, cac: 0, roas: 0, cpl: 4.39, cpa: 58.83, cr1: 65.3, cr2: 11.4, cr3: 7.5, roi_pct: 0 },
-  { mes: 'JUN', mayo_mode: false, ing: 1413, val: 975, serv: 125, monto: 5500, venta: 137, venta_online: 109, venta_offline: 28, cac: 268.5, roas: 0, cpl: 3.89, cpa: 44.00, cr1: 69.0, cr2: 12.8, cr3: 8.8, roi_pct: 0 },
+  { mes: 'ENE', mayo_mode: false, ing: 2333, val: 1765, serv: 139, monto: 3635, monto_offline: 8386, ing_online: 1295, ing_offline: 1038, venta: 137, venta_online: 97, venta_offline: 40, cac: 0, roas: 0, cpl: 1.56, cpa: 26.15, cr1: 75.7, cr2: 7.9, cr3: 6.0, roi_pct: 0 },
+  { mes: 'FEB', mayo_mode: false, ing: 2343, val: 1696, serv: 76, monto: 4153, monto_offline: 7212, ing_online: 981, ing_offline: 1362, venta: 66, venta_online: 43, venta_offline: 23, cac: 0, roas: 0, cpl: 1.77, cpa: 54.64, cr1: 72.4, cr2: 4.5, cr3: 3.2, roi_pct: 0 },
+  { mes: 'MAR', mayo_mode: false, ing: 1876, val: 1443, serv: 99, monto: 5381, monto_offline: 9745, ing_online: 992, ing_offline: 884, venta: 99, venta_online: 81, venta_offline: 18, cac: 0, roas: 0, cpl: 2.87, cpa: 54.35, cr1: 76.9, cr2: 6.9, cr3: 5.3, roi_pct: 0 },
+  { mes: 'ABR', mayo_mode: false, ing: 1417, val: 1417, serv: 42, monto: 6125, monto_offline: 14885, ing_online: 1013, ing_offline: 404, venta: 45, venta_online: 37, venta_offline: 8, cac: 0, roas: 0, cpl: 4.32, cpa: 145.83, cr1: 100.0, cr2: 3.0, cr3: 3.0, roi_pct: 0 },
+  { mes: 'MAY', mayo_mode: false, ing: 1607, val: 1050, serv: 120, monto: 7059, monto_offline: 7980, ing_online: 1105, ing_offline: 502, venta: 120, venta_online: 92, venta_offline: 28, cac: 0, roas: 0, cpl: 4.39, cpa: 58.83, cr1: 65.3, cr2: 11.4, cr3: 7.5, roi_pct: 0 },
+  { mes: 'JUN', mayo_mode: false, ing: 1413, val: 975, serv: 125, monto: 5500, monto_offline: 0, ing_online: 890, ing_offline: 523, venta: 137, venta_online: 109, venta_offline: 28, cac: 268.5, roas: 0, cpl: 3.89, cpa: 44.00, cr1: 69.0, cr2: 12.8, cr3: 8.8, roi_pct: 0 },
 ]
 
 const MIX = [
@@ -440,7 +440,8 @@ export async function seed() {
 
   await step('conversion_data', () => db.insert(schema.conversionData).values(CONV.map(d => ({
     mes: d.mes, mayoMode: d.mayo_mode, ing: d.ing, val: d.val, serv: d.serv,
-    monto: d.monto, venta: d.venta, ventaOnline: d.venta_online, ventaOffline: d.venta_offline,
+    monto: d.monto, montoOffline: (d as any).monto_offline, ingOnline: (d as any).ing_online, ingOffline: (d as any).ing_offline,
+    venta: d.venta, ventaOnline: d.venta_online, ventaOffline: d.venta_offline,
     cac: d.cac, roas: d.roas, cpl: d.cpl, cpa: d.cpa,
     cr1: d.cr1, cr2: d.cr2, cr3: d.cr3, roiPct: d.roi_pct,
   }))))

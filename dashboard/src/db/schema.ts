@@ -28,6 +28,11 @@ export const conversionData = pgTable('conversion_data', {
   cr2: doublePrecision('cr2'),
   cr3: doublePrecision('cr3'),
   roiPct: doublePrecision('roi_pct'),
+  // Gasto de prospección: monto = pauta online (Meta+Google+TikTok);
+  // montoOffline = Eventos + Viajes + Campañas. ingOnline/ingOffline = leads por canal.
+  montoOffline: doublePrecision('monto_offline'),
+  ingOnline: doublePrecision('ing_online'),
+  ingOffline: doublePrecision('ing_offline'),
 })
 
 // ── Mix de Servicios ─────────────────────────────────────────

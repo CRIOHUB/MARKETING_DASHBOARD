@@ -183,6 +183,11 @@ const STATEMENTS: string[] = [
      myprenatal integer DEFAULT 0,
      total integer DEFAULT 0
    );`,
+
+  // Columnas nuevas de gasto/leads por canal (idempotente sobre tabla existente)
+  `ALTER TABLE conversion_data ADD COLUMN IF NOT EXISTS monto_offline double precision;`,
+  `ALTER TABLE conversion_data ADD COLUMN IF NOT EXISTS ing_online double precision;`,
+  `ALTER TABLE conversion_data ADD COLUMN IF NOT EXISTS ing_offline double precision;`,
 ]
 
 export async function createSchema() {
