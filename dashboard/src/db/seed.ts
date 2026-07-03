@@ -17,7 +17,7 @@ const CONV = [
   { mes: 'MAR', mayo_mode: false, ing: 1876, val: 1443, serv: 99, monto: 5381, monto_offline: 9745, ing_online: 992, ing_offline: 884, venta: 99, venta_online: 81, venta_offline: 18, cac: 0, roas: 0, cpl: 2.87, cpa: 54.35, cr1: 76.9, cr2: 6.9, cr3: 5.3, roi_pct: 0 },
   { mes: 'ABR', mayo_mode: false, ing: 1417, val: 1417, serv: 42, monto: 6125, monto_offline: 14885, ing_online: 1013, ing_offline: 404, venta: 45, venta_online: 37, venta_offline: 8, cac: 0, roas: 0, cpl: 4.32, cpa: 145.83, cr1: 100.0, cr2: 3.0, cr3: 3.0, roi_pct: 0 },
   { mes: 'MAY', mayo_mode: false, ing: 1607, val: 1050, serv: 120, monto: 7059, monto_offline: 7980, ing_online: 1105, ing_offline: 502, venta: 120, venta_online: 92, venta_offline: 28, cac: 0, roas: 0, cpl: 4.39, cpa: 58.83, cr1: 65.3, cr2: 11.4, cr3: 7.5, roi_pct: 0 },
-  { mes: 'JUN', mayo_mode: false, ing: 1413, val: 975, serv: 125, monto: 5500, monto_offline: 0, ing_online: 890, ing_offline: 523, venta: 137, venta_online: 109, venta_offline: 28, cac: 268.5, roas: 0, cpl: 3.89, cpa: 44.00, cr1: 69.0, cr2: 12.8, cr3: 8.8, roi_pct: 0 },
+  { mes: 'JUN', mayo_mode: false, ing: 1413, val: 975, serv: 125, monto: 5500, monto_offline: 0, ing_online: 890, ing_offline: 523, venta: 137, venta_online: 109, venta_offline: 28, cac: 272.2, roas: 0, cpl: 3.89, cpa: 44.00, cr1: 69.0, cr2: 12.8, cr3: 8.8, roi_pct: 0 },
 ]
 
 const MIX = [

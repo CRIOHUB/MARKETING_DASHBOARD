@@ -35,7 +35,7 @@ export const SCORECARD_DEF = {
       num: '①', title: 'DIGITAL PERFORMANCE',
       kpis: [
         { label: 'Total Leads Digital', fmt: 'num', better: 'higher', meta: [1000,1000,1000,1000,1000,1000,1250,1250,1250,1250,1250,1250], real: [1295,981,992,1013,1105,890], metaFy: 13500, realFy: 6276 },
-        { label: 'Ventas Digitales', fmt: 'num', better: 'higher', meta: [54,35,39,54,54,54,61,61,61,61,61,61], real: [54,35,45,26,44,56], metaFy: 656, realFy: 260 },
+        { label: 'Ventas Digitales', fmt: 'num', better: 'higher', meta: [54,35,39,54,54,54,61,61,61,61,61,61], real: [54,35,45,26,44,58], metaFy: 656, realFy: 262 },
         { label: 'CPL (MXN ÷ leads)', fmt: 'mxn', better: 'lower', meta: [71,70,69,51,38,48,46,50,32,50,23,24], real: [21,26,33,35,31,31], metaFy: 572, realFy: 177 },
         { label: 'CR Digital', fmt: 'pct', better: 'higher', meta: [4.5,4.5,4.5,4.5,4.5,4.5,4.5,4.5,4.5,4.5,4.5,4.5], real: [4.17,3.57,4.54,2.57,3.98,6.29], metaFy: 4.5, realFy: 4.19 },
       ],
