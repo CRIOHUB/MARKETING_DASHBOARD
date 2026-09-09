@@ -8,12 +8,14 @@ import { MonthFilter } from '@/components/ui/month-filter'
 import { PlotlyChart } from '@/components/charts/plotly-chart'
 import { fmt, parseMeses, sum } from '@/lib/utils'
 import { META_VEND, VEND_COLORS } from '@/lib/constants'
+import { VendorFilter } from '@/components/ui/vendor-filter'
 
-interface PageProps { searchParams: Promise<{ meses?: string }> }
+interface PageProps { searchParams: Promise<{ meses?: string; vend?: string }> }
 
 export default async function VentasPage({ searchParams }: PageProps) {
   const params = await searchParams
   const sel = parseMeses(params.meses)
+  const selVend = parseMeses(params.vend)
 
   let vend: any[] = []
   try {
@@ -22,8 +24,10 @@ export default async function VentasPage({ searchParams }: PageProps) {
       : await db.select().from(vendedores)
   } catch {}
 
-  const execs  = [...new Set(vend.map((r: any) => r.exec))].sort()
-  const meses  = [...new Set(vend.map((r: any) => r.mes))].sort()
+  const allExecs = [...new Set(vend.map((r: any) => r.exec))].sort()
+  const execs  = selVend.length ? allExecs.filter(e => selVend.includes(e)) : allExecs
+  const vendF  = vend.filter((r: any) => execs.includes(r.exec))
+  const meses  = [...new Set(vendF.map((r: any) => r.mes))].sort()
 
   const execTotals = execs.map(exec => ({
     exec,
@@ -49,6 +53,7 @@ export default async function VentasPage({ searchParams }: PageProps) {
   return (
     <div>
       <Suspense><MonthFilter /></Suspense>
+      <Suspense><VendorFilter options={allExecs} label="Ejecutivo" /></Suspense>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, marginBottom: 24 }}>
         <KpiBox label="UCU" value={fmt(grandTotal.ucu)} color="#0B5394" />
@@ -78,7 +83,7 @@ export default async function VentasPage({ searchParams }: PageProps) {
       </GlassCard>
 
       {/* Full table */}
-      {vend.length > 0 && (
+      {vendF.length > 0 && (
         <GlassCard title="Detalle por Ejecutivo">
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
@@ -90,7 +95,7 @@ export default async function VentasPage({ searchParams }: PageProps) {
                 </tr>
               </thead>
               <tbody>
-                {vend.map((r: any, i: number) => (
+                {vendF.map((r: any, i: number) => (
                   <tr key={i} style={{ borderBottom: '1px solid var(--color-border)', background: i % 2 ? 'rgba(255,255,255,.015)' : 'transparent' }}>
                     <td style={{ ...td, fontWeight: 600 }}>{r.exec}</td>
                     <td style={td}>{r.zona}</td>

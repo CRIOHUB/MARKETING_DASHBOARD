@@ -10,11 +10,14 @@ import * as schema from './schema'
 // roas=0 and roi_pct=0 (Venta S/ and ROAS removed from the UI).
 // Derived: cr1=val/ing, cr2=serv/val, cr3=serv/ing, cpl=monto/ing, cpa=monto/serv.
 const CONV = [
-  { mes: 'ENE', mayo_mode: false, ing: 2333, val: 1765, serv: 139, monto: 12000, venta: 137, venta_online: 97, venta_offline: 40, cac: 0, roas: 0, cpl: 5.14, cpa: 86.33, cr1: 75.7, cr2: 7.9, cr3: 6.0, roi_pct: 0 },
-  { mes: 'FEB', mayo_mode: false, ing: 2343, val: 1696, serv: 76, monto: 12423, venta: 66, venta_online: 43, venta_offline: 23, cac: 0, roas: 0, cpl: 5.30, cpa: 163.46, cr1: 72.4, cr2: 4.5, cr3: 3.2, roi_pct: 0 },
-  { mes: 'MAR', mayo_mode: false, ing: 1876, val: 1443, serv: 99, monto: 18217, venta: 99, venta_online: 81, venta_offline: 18, cac: 0, roas: 0, cpl: 9.71, cpa: 184.01, cr1: 76.9, cr2: 6.9, cr3: 5.3, roi_pct: 0 },
-  { mes: 'ABR', mayo_mode: false, ing: 1417, val: 1417, serv: 42, monto: 19968.47, venta: 45, venta_online: 37, venta_offline: 8, cac: 0, roas: 0, cpl: 14.09, cpa: 475.44, cr1: 100.0, cr2: 3.0, cr3: 3.0, roi_pct: 0 },
-  { mes: 'MAY', mayo_mode: false, ing: 1607, val: 1050, serv: 120, monto: 20000, venta: 120, venta_online: 92, venta_offline: 28, cac: 0, roas: 0, cpl: 12.45, cpa: 166.67, cr1: 65.3, cr2: 11.4, cr3: 7.5, roi_pct: 0 },
+  // monto = GASTO DE PROSPECCIÓN (pauta Meta+Google+TikTok, hoja MKTCC 2026), NO el gasto MKT total.
+  // CPL=monto/ing (leads), CPA=monto/serv. venta_online/offline = Captación vs Venta (canal).
+  { mes: 'ENE', mayo_mode: false, ing: 2333, val: 1765, serv: 139, monto: 3635, monto_offline: 8386, ing_online: 1295, ing_offline: 1038, venta: 137, venta_online: 97, venta_offline: 40, cac: 0, roas: 0, cpl: 1.56, cpa: 26.15, cr1: 75.7, cr2: 7.9, cr3: 6.0, roi_pct: 0 },
+  { mes: 'FEB', mayo_mode: false, ing: 2343, val: 1696, serv: 76, monto: 4153, monto_offline: 7212, ing_online: 981, ing_offline: 1362, venta: 66, venta_online: 43, venta_offline: 23, cac: 0, roas: 0, cpl: 1.77, cpa: 54.64, cr1: 72.4, cr2: 4.5, cr3: 3.2, roi_pct: 0 },
+  { mes: 'MAR', mayo_mode: false, ing: 1876, val: 1443, serv: 99, monto: 5381, monto_offline: 9745, ing_online: 992, ing_offline: 884, venta: 99, venta_online: 81, venta_offline: 18, cac: 0, roas: 0, cpl: 2.87, cpa: 54.35, cr1: 76.9, cr2: 6.9, cr3: 5.3, roi_pct: 0 },
+  { mes: 'ABR', mayo_mode: false, ing: 1417, val: 1417, serv: 42, monto: 6125, monto_offline: 14885, ing_online: 1013, ing_offline: 404, venta: 45, venta_online: 37, venta_offline: 8, cac: 0, roas: 0, cpl: 4.32, cpa: 145.83, cr1: 100.0, cr2: 3.0, cr3: 3.0, roi_pct: 0 },
+  { mes: 'MAY', mayo_mode: false, ing: 1607, val: 1050, serv: 120, monto: 7059, monto_offline: 7980, ing_online: 1105, ing_offline: 502, venta: 120, venta_online: 92, venta_offline: 28, cac: 0, roas: 0, cpl: 4.39, cpa: 58.83, cr1: 65.3, cr2: 11.4, cr3: 7.5, roi_pct: 0 },
+  { mes: 'JUN', mayo_mode: false, ing: 1413, val: 975, serv: 125, monto: 5500, monto_offline: 0, ing_online: 890, ing_offline: 523, venta: 137, venta_online: 109, venta_offline: 28, cac: 272.2, roas: 0, cpl: 3.89, cpa: 44.00, cr1: 69.0, cr2: 12.8, cr3: 8.8, roi_pct: 0 },
 ]
 
 const MIX = [
@@ -45,11 +48,11 @@ const MIX = [
   { mes: 'MAY', servicio: 'MyPrenatal', servicios: 8, venta: 0 },
   { mes: 'MAY', servicio: 'Seguridad Total', servicios: 24, venta: 0 },
   // JUN — avance preliminar (servicios entregados por FFVV; online/atribución pendiente)
-  { mes: 'JUN', servicio: 'UCU', servicios: 40, venta: 0 },
-  { mes: 'JUN', servicio: 'ADN', servicios: 10, venta: 0 },
-  { mes: 'JUN', servicio: 'Tamizaje', servicios: 16, venta: 0 },
+  { mes: 'JUN', servicio: 'UCU', servicios: 73, venta: 0 },
+  { mes: 'JUN', servicio: 'ADN', servicios: 19, venta: 0 },
+  { mes: 'JUN', servicio: 'Tamizaje', servicios: 30, venta: 0 },
   { mes: 'JUN', servicio: 'MyPrenatal', servicios: 3, venta: 0 },
-  { mes: 'JUN', servicio: 'Seguridad Total', servicios: 45, venta: 0 },
+  { mes: 'JUN', servicio: 'Seguridad Total', servicios: 60, venta: 0 },
 ]
 
 const VM = [
@@ -68,6 +71,9 @@ const VM = [
   { mes: 'ABR', exec: 'Milagros', zona: 'Lima', visitas: 143, pot_uso: 0, notas: 'Delgado 28, San Felipe 24, SANNA Golf 23' },
   { mes: 'ABR', exec: 'Marylin', zona: 'Lima', visitas: 139, pot_uso: 0, notas: 'Cl.Int.SB 27, SANNA SB 24, RP 12' },
   { mes: 'ABR', exec: 'Velia', zona: 'Arequipa', visitas: 131, pot_uso: 0, notas: 'Pol.EsSalud Yanahuara 13, San Pablo AQP 13' },
+  { mes: 'JUN', exec: 'Marylin', zona: 'Lima', visitas: 58, pot_uso: 0, notas: 'Corte parcial junio' },
+  { mes: 'JUN', exec: 'Milagros', zona: 'Lima', visitas: 25, pot_uso: 0, notas: 'Corte parcial junio' },
+  { mes: 'JUN', exec: 'Velia', zona: 'Arequipa', visitas: 60, pot_uso: 0, notas: 'Corte parcial junio' },
 ]
 
 const VMCAT = [
@@ -158,14 +164,30 @@ const CAPT = [
   { captador: 'VM — Milagros Herrera', canal: 'vm', mes: 'ABR', ventas: 8 },
   { captador: 'VM — Marylin', canal: 'vm', mes: 'ABR', ventas: 3 },
   { captador: 'VM — Velia', canal: 'vm', mes: 'ABR', ventas: 1 },
+  { captador: 'Digital / MKT + Comercial', canal: 'digital', mes: 'JUN', ventas: 109 },
+  { captador: 'VM — Marylin', canal: 'vm', mes: 'JUN', ventas: 14 },
+  { captador: 'VM — Milagros', canal: 'vm', mes: 'JUN', ventas: 11 },
+  { captador: 'VM — Velia', canal: 'vm', mes: 'JUN', ventas: 3 },
 ]
 
+// Presupuesto MKT CrioCord — hoja "MKTCC 2026" de PPTO CONSOLIDADO MKT DW.
+// online = pauta/digital (Meta, Google, TikTok, Brevo, Wati, herramientas).
+// offline = actividades + materiales físicos (papelería, eventos, viajes, caja chica, campañas).
+// gastado = TOTAL GASTO (real); ppto_plan = TOTAL PRESUPUESTO; cumpl = gasto/ppto.
+// Meses ENE–JUN = ejecución real; JUL–DIC solo presupuesto (aún no ejecutado).
 const PPTO = [
-  { mes: 'ENE', online: 9624.25, offline: 2375.75, eventos: 0, gastado: 12000, gasto_total: 13200, ppto_plan: 12000, cumpl_pct: 110 },
-  { mes: 'FEB', online: 9624.25, offline: 2798.75, eventos: 0, gastado: 12423, gasto_total: 13623, ppto_plan: 14000, cumpl_pct: 97.3 },
-  { mes: 'MAR', online: 9624.25, offline: 2730.09, eventos: 5862.66, gastado: 18217, gasto_total: 19617, ppto_plan: 18000, cumpl_pct: 109 },
-  { mes: 'ABR', online: 9624.25, offline: 2730.09, eventos: 7614.13, gastado: 19968.47, gasto_total: 21368.47, ppto_plan: 20000, cumpl_pct: 106.8 },
-  { mes: 'MAY', online: 9624.25, offline: 2730.09, eventos: 0, gastado: 12354.34, gasto_total: 13754.34, ppto_plan: 23429, cumpl_pct: 58.7 },
+  { mes: 'ENE', online: 7413, offline: 25369, eventos: 0, gastado: 32872, gasto_total: 32872, ppto_plan: 48390, cumpl_pct: 67.9 },
+  { mes: 'FEB', online: 7208, offline: 13086, eventos: 0, gastado: 20385, gasto_total: 20385, ppto_plan: 27258, cumpl_pct: 74.8 },
+  { mes: 'MAR', online: 9497, offline: 57642, eventos: 0, gastado: 67230, gasto_total: 67230, ppto_plan: 30535, cumpl_pct: 220.2 },
+  { mes: 'ABR', online: 10233, offline: 29661, eventos: 0, gastado: 39998, gasto_total: 39998, ppto_plan: 43172, cumpl_pct: 92.6 },
+  { mes: 'MAY', online: 12540, offline: 11000, eventos: 0, gastado: 23644, gasto_total: 23644, ppto_plan: 23429, cumpl_pct: 100.9 },
+  { mes: 'JUN', online: 10100, offline: 11675, eventos: 0, gastado: 21878, gasto_total: 21878, ppto_plan: 30030, cumpl_pct: 72.9 },
+  { mes: 'JUL', online: 0, offline: 0, eventos: 0, gastado: 0, gasto_total: 0, ppto_plan: 39752, cumpl_pct: 0 },
+  { mes: 'AGO', online: 0, offline: 0, eventos: 0, gastado: 0, gasto_total: 0, ppto_plan: 37724, cumpl_pct: 0 },
+  { mes: 'SEP', online: 0, offline: 0, eventos: 0, gastado: 0, gasto_total: 0, ppto_plan: 23501, cumpl_pct: 0 },
+  { mes: 'OCT', online: 0, offline: 0, eventos: 0, gastado: 0, gasto_total: 0, ppto_plan: 49404, cumpl_pct: 0 },
+  { mes: 'NOV', online: 0, offline: 0, eventos: 0, gastado: 0, gasto_total: 0, ppto_plan: 16651, cumpl_pct: 0 },
+  { mes: 'DIC', online: 0, offline: 0, eventos: 0, gastado: 0, gasto_total: 0, ppto_plan: 16621, cumpl_pct: 0 },
 ]
 
 const HIST = [
@@ -223,11 +245,14 @@ const VEND = [
   { exec: 'Heinrrich Stechmann', zona: 'Provincia', mes: 'MAY', ucu: 17, adn: 9, tamizaje: 11, myprenatal: 4, seg_total: 8, leads: 226, validos: 0 },
   { exec: 'Liseth Rondon', zona: 'Lima', mes: 'MAY', ucu: 17, adn: 3, tamizaje: 7, myprenatal: 3, seg_total: 7, leads: 197, validos: 0 },
   { exec: 'Carolina Vasques', zona: 'Lima', mes: 'MAY', ucu: 15, adn: 3, tamizaje: 6, myprenatal: 0, seg_total: 4, leads: 135, validos: 0 },
-  { exec: 'Adler Rosales', zona: 'Lima', mes: 'JUN', ucu: 8, adn: 3, tamizaje: 5, myprenatal: 0, seg_total: 15, leads: 0, validos: 0 },
-  { exec: 'Heinrrich Stechmann', zona: 'Provincia', mes: 'JUN', ucu: 6, adn: 3, tamizaje: 3, myprenatal: 1, seg_total: 4, leads: 0, validos: 0 },
-  { exec: 'Liseth Rondon', zona: 'Lima', mes: 'JUN', ucu: 9, adn: 2, tamizaje: 4, myprenatal: 0, seg_total: 9, leads: 0, validos: 0 },
-  { exec: 'Carolina Vasques', zona: 'Lima', mes: 'JUN', ucu: 9, adn: 1, tamizaje: 2, myprenatal: 0, seg_total: 7, leads: 0, validos: 0 },
-  { exec: 'Claudia', zona: 'Lima', mes: 'JUN', ucu: 1, adn: 0, tamizaje: 0, myprenatal: 0, seg_total: 0, leads: 0, validos: 0 },
+  // JUN — Ventas por Asesor Comercial (hoja JUN-26, SEGUIMIENTO PROSPECCION 2026.xlsx).
+  // seg_total = "Seguridad Total S" + "Seguridad Total T". ucu = Cordones.
+  { exec: 'Adler Rosales', zona: 'Lima', mes: 'JUN', ucu: 17, adn: 6, tamizaje: 9, myprenatal: 0, seg_total: 15, leads: 0, validos: 0 },
+  { exec: 'Heinrrich Stechmann', zona: 'Provincia', mes: 'JUN', ucu: 17, adn: 7, tamizaje: 9, myprenatal: 1, seg_total: 10, leads: 0, validos: 0 },
+  { exec: 'Liseth Rondon', zona: 'Lima', mes: 'JUN', ucu: 20, adn: 2, tamizaje: 6, myprenatal: 1, seg_total: 17, leads: 0, validos: 0 },
+  { exec: 'Carolina Vasques', zona: 'Lima', mes: 'JUN', ucu: 18, adn: 4, tamizaje: 6, myprenatal: 0, seg_total: 11, leads: 0, validos: 0 },
+  { exec: 'Claudia', zona: 'Lima', mes: 'JUN', ucu: 1, adn: 0, tamizaje: 0, myprenatal: 1, seg_total: 4, leads: 0, validos: 0 },
+  { exec: 'Oficina', zona: 'Lima', mes: 'JUN', ucu: 0, adn: 0, tamizaje: 0, myprenatal: 0, seg_total: 3, leads: 0, validos: 0 },
 ]
 
 const COMMS = [
@@ -339,6 +364,10 @@ const CAPT_REP = [
   { mes: 'MAY', rep: 'Milagros H', canal: 'offline', ucu: 6, tamizaje: 3, adn: 2, myprenatal: 3, total: 14 },
   { mes: 'MAY', rep: 'Marylin', canal: 'offline', ucu: 7, tamizaje: 1, adn: 0, myprenatal: 2, total: 10 },
   { mes: 'MAY', rep: 'Velia', canal: 'offline', ucu: 1, tamizaje: 0, adn: 0, myprenatal: 3, total: 4 },
+  { mes: 'JUN', rep: 'MKT CrioCord', canal: 'online', ucu: 58, tamizaje: 29, adn: 22, myprenatal: 0, total: 109 },
+  { mes: 'JUN', rep: 'Marylin', canal: 'offline', ucu: 9, tamizaje: 2, adn: 3, myprenatal: 0, total: 14 },
+  { mes: 'JUN', rep: 'Milagros', canal: 'offline', ucu: 5, tamizaje: 2, adn: 2, myprenatal: 2, total: 11 },
+  { mes: 'JUN', rep: 'Velia', canal: 'offline', ucu: 1, tamizaje: 0, adn: 0, myprenatal: 2, total: 3 },
 ]
 
 const VM_PROSP = [
@@ -363,6 +392,28 @@ const VM_PROSP = [
   { mes: 'JUN', captador: 'Diana', canal: 'vm', leads: 4, captaciones: 0, detalle: 'Nueva VM Provincia (onboarding junio)' },
 ]
 
+// Prospección — INGRESADOS por captador/canal (hoja CRIOCORD, SEGUIMIENTO PROSPECCION
+// 2026.xlsx). Métrica = prospectos ingresados (no ventas). cordon = UCU.
+const PROSP_ING = [
+  // ABR / MAY — solo Visitadores (offline), para el comparativo mensual de Prospección Offline
+  { mes: 'ABR', grupo: 'Visitadores', captador: 'Marylin',  cordon: 403, tamizaje: 0, adn: 0, myprenatal: 0, total: 403 },
+  { mes: 'ABR', grupo: 'Visitadores', captador: 'Milagros', cordon: 266, tamizaje: 0, adn: 0, myprenatal: 1, total: 267 },
+  { mes: 'ABR', grupo: 'Visitadores', captador: 'Velia',    cordon: 213, tamizaje: 0, adn: 0, myprenatal: 2, total: 215 },
+  { mes: 'MAY', grupo: 'Visitadores', captador: 'Marylin',  cordon: 158, tamizaje: 1, adn: 0, myprenatal: 2, total: 161 },
+  { mes: 'MAY', grupo: 'Visitadores', captador: 'Milagros', cordon: 238, tamizaje: 2, adn: 1, myprenatal: 3, total: 244 },
+  { mes: 'MAY', grupo: 'Visitadores', captador: 'Velia',    cordon: 94,  tamizaje: 1, adn: 0, myprenatal: 2, total: 97 },
+  // JUN
+  { mes: 'JUN', grupo: 'Visitadores', captador: 'Marylin',  cordon: 151, tamizaje: 0, adn: 0,  myprenatal: 9, total: 160 },
+  { mes: 'JUN', grupo: 'Visitadores', captador: 'Diana',    cordon: 16,  tamizaje: 0, adn: 0,  myprenatal: 4, total: 20 },
+  { mes: 'JUN', grupo: 'Visitadores', captador: 'Milagros', cordon: 231, tamizaje: 1, adn: 0,  myprenatal: 6, total: 238 },
+  { mes: 'JUN', grupo: 'Visitadores', captador: 'Velia',    cordon: 98,  tamizaje: 2, adn: 0,  myprenatal: 5, total: 105 },
+  { mes: 'JUN', grupo: 'Comercial',   captador: 'Adler',    cordon: 2,   tamizaje: 0, adn: 0,  myprenatal: 0, total: 2 },
+  { mes: 'JUN', grupo: 'Comercial',   captador: 'Heinrich', cordon: 5,   tamizaje: 0, adn: 0,  myprenatal: 0, total: 5 },
+  { mes: 'JUN', grupo: 'MKT',         captador: 'Daniel',   cordon: 408, tamizaje: 3, adn: 27, myprenatal: 2, total: 440 },
+  { mes: 'JUN', grupo: 'Anualidades', captador: 'Katherine',cordon: 2,   tamizaje: 0, adn: 0,  myprenatal: 0, total: 2 },
+  { mes: 'JUN', grupo: 'Anualidades', captador: 'Marcos',   cordon: 3,   tamizaje: 0, adn: 0,  myprenatal: 0, total: 3 },
+]
+
 // ─── Seed function ────────────────────────────────────────────────────────────
 
 export async function seed() {
@@ -373,6 +424,7 @@ export async function seed() {
     schema.clinicas, schema.captacion, schema.presupuesto, schema.historialGastos,
     schema.vendedores, schema.comunicaciones, schema.actividades, schema.proyectos,
     schema.inversionBruta, schema.captacionRep, schema.vmProspeccion,
+    schema.prospeccionIngresos,
   ]
   for (const t of allTables) {
     try { await db.delete(t) } catch (e: any) { console.error('delete fail', e?.message ?? e) }
@@ -388,7 +440,8 @@ export async function seed() {
 
   await step('conversion_data', () => db.insert(schema.conversionData).values(CONV.map(d => ({
     mes: d.mes, mayoMode: d.mayo_mode, ing: d.ing, val: d.val, serv: d.serv,
-    monto: d.monto, venta: d.venta, ventaOnline: d.venta_online, ventaOffline: d.venta_offline,
+    monto: d.monto, montoOffline: (d as any).monto_offline, ingOnline: (d as any).ing_online, ingOffline: (d as any).ing_offline,
+    venta: d.venta, ventaOnline: d.venta_online, ventaOffline: d.venta_offline,
     cac: d.cac, roas: d.roas, cpl: d.cpl, cpa: d.cpa,
     cr1: d.cr1, cr2: d.cr2, cr3: d.cr3, roiPct: d.roi_pct,
   }))))
@@ -452,6 +505,11 @@ export async function seed() {
   await step('vm_prospeccion', () => db.insert(schema.vmProspeccion).values(VM_PROSP.map(d => ({
     mes: d.mes, captador: d.captador, canal: d.canal,
     leads: d.leads, captaciones: d.captaciones, detalle: d.detalle,
+  }))))
+
+  await step('prospeccion_ingresos', () => db.insert(schema.prospeccionIngresos).values(PROSP_ING.map(d => ({
+    mes: d.mes, grupo: d.grupo, captador: d.captador,
+    cordon: d.cordon, tamizaje: d.tamizaje, adn: d.adn, myprenatal: d.myprenatal, total: d.total,
   }))))
 
   console.log('\nSeed complete.', results)

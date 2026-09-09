@@ -8,14 +8,17 @@ import { MonthFilter } from '@/components/ui/month-filter'
 import { PlotlyChart } from '@/components/charts/plotly-chart'
 import { fmt, parseMeses, sum } from '@/lib/utils'
 import { CHART_COLORS } from '@/lib/constants'
+import { ServiceFilter } from '@/components/ui/service-filter'
 
-interface PageProps { searchParams: Promise<{ meses?: string }> }
+interface PageProps { searchParams: Promise<{ meses?: string; serv?: string }> }
 
-const SERVICIOS = ['UCU', 'ADN', 'Tamizaje', 'MyPrenatal', 'Seguridad Total'] as const
+const ALL_SERVICIOS = ['UCU', 'ADN', 'Tamizaje', 'MyPrenatal', 'Seguridad Total'] as const
 
 export default async function MixPage({ searchParams }: PageProps) {
   const params = await searchParams
   const sel = parseMeses(params.meses)
+  const selServ = parseMeses(params.serv)
+  const SERVICIOS = (selServ.length ? ALL_SERVICIOS.filter(s => selServ.includes(s)) : [...ALL_SERVICIOS]) as string[]
 
   let mix: any[] = []
   try {
@@ -34,6 +37,7 @@ export default async function MixPage({ searchParams }: PageProps) {
   return (
     <div>
       <Suspense><MonthFilter /></Suspense>
+      <Suspense><ServiceFilter /></Suspense>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12, marginBottom: 24 }}>
         {SERVICIOS.map(s => (

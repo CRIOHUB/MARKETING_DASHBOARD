@@ -171,6 +171,23 @@ const STATEMENTS: string[] = [
      captaciones integer DEFAULT 0,
      detalle text
    );`,
+
+  `CREATE TABLE IF NOT EXISTS prospeccion_ingresos (
+     id serial PRIMARY KEY,
+     mes varchar(3) NOT NULL,
+     grupo varchar(50) NOT NULL,
+     captador varchar(100) NOT NULL,
+     cordon integer DEFAULT 0,
+     tamizaje integer DEFAULT 0,
+     adn integer DEFAULT 0,
+     myprenatal integer DEFAULT 0,
+     total integer DEFAULT 0
+   );`,
+
+  // Columnas nuevas de gasto/leads por canal (idempotente sobre tabla existente)
+  `ALTER TABLE conversion_data ADD COLUMN IF NOT EXISTS monto_offline double precision;`,
+  `ALTER TABLE conversion_data ADD COLUMN IF NOT EXISTS ing_online double precision;`,
+  `ALTER TABLE conversion_data ADD COLUMN IF NOT EXISTS ing_offline double precision;`,
 ]
 
 export async function createSchema() {

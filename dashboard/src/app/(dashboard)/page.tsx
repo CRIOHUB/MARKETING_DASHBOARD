@@ -10,7 +10,7 @@ interface PageProps {
   searchParams: Promise<{ meses?: string }>
 }
 
-const REAL_MESES = SCORECARD_DEF.meses // ['ENE'..'MAY']
+const REAL_MESES = SCORECARD_DEF.meses // ['ENE'..'JUN']
 
 function valStr(v: number | undefined, f: string): string {
   if (v === undefined || v === null) return '—'
